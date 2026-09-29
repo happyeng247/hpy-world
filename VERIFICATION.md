@@ -57,3 +57,13 @@ The original HPY orb PNG and lowercase SVG wordmark were reused from the existin
 Increased world controls, destination labels, encounter text, map copy, original sections, gate, and shared dialogs. Primary copy and controls use approximately 16–17px, supporting copy 14px, and small labels at least 12px. Encounter questions use 22–24px. Increased panel/control space and contrast; the map keeps its actions visible while its destination area scrolls.
 
 Production build passes. Browser checks at the app’s 639px panel, 390×844, and 1280×900 confirmed larger computed text sizes and no horizontal overflow. Mobile map geometry no longer overlaps its destination list; mobile encounters and desktop/mobile conversation panels were visually inspected. No journal entries or settings were changed.
+
+## Mobile controls update
+
+Added automatic touch controls for phones, tablets, and touch input: a thumb joystick with a neutral zone, swipe-to-look, pinch zoom, zoom/reset buttons, and contextual instructions. The phone layout works in portrait and landscape and accounts for safe-area insets. Menus and invitations stop movement, and interrupted gestures release pointer ownership.
+
+All 48 automated checks pass, including 12 gesture checks for pinch ratios, pinch-to-drag continuation, cancellation, long presses, and interleaved joystick/canvas input without accidental walking. Production builds pass in both the standalone app and its HPY web repository copy; the copied source files match byte-for-byte.
+
+Browser verification used a separate QA server and empty test store. At 390×844, joystick movement stopped on release, camera drag and zoom worked without moving the traveler, tap-to-walk and map-guided travel worked, and the nearby invitation opened without a keyboard. Primary navigation, joystick, camera, and help targets measured at least 44×44 CSS pixels. The 320×568 layout had no horizontal overflow and its invitation scrolled within the viewport. At 844×390, landscape controls stayed separated and map destination actions remained visible. At 1280×900, keyboard hints and the minimap returned, with touch controls hidden. No unexpected browser warnings or errors were recorded.
+
+Multi-touch transitions were verified with automated gesture tests. A physical iOS/Android device, its on-screen keyboard, and actual device cutouts were not tested. No existing journal entries or preferences were accessed or changed during this verification.

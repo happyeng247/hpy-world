@@ -352,3 +352,58 @@
   .world-map-layout{align-items:start}
   .world-map-layout>.world-island-map{align-self:start}
 }
+
+/* Touch controls stay within thumb reach and clear of device cutouts. */
+.world-experience{--world-left:max(20px,env(safe-area-inset-left));--world-right:max(20px,env(safe-area-inset-right));--world-bottom:max(16px,env(safe-area-inset-bottom));--world-top:max(16px,env(safe-area-inset-top));overscroll-behavior:none}
+.world-hud button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.world-hud .world-joystick{touch-action:none}
+.world-experience:not(.has-touch-controls) .world-joystick-wrap{display:none}
+.world-touch-camera{display:none;position:absolute;z-index:3;right:var(--world-right);bottom:calc(var(--world-bottom) + 38px);width:156px;text-align:center}
+.world-touch-camera p{margin:0 0 9px;color:#3e3b38;font-size:14px;line-height:1.5;background:#fffaf0e8;border:1px solid #fff9;border-radius:14px;padding:8px;backdrop-filter:blur(8px)}
+.world-camera-buttons{display:flex;gap:2px;padding:4px;border:1px solid #fff9;border-radius:19px;background:#fffaf0f2;box-shadow:0 4px 18px #263d3920;backdrop-filter:blur(8px)}
+.world-camera-buttons button{display:grid;place-items:center;flex:1;min-width:44px;height:48px;color:#60466c;border-radius:13px}
+.world-camera-buttons button:hover,.world-camera-buttons button:active{background:#e9ddee}
+.world-camera-buttons button:focus-visible{outline:2px solid #755381;outline-offset:-2px}
+.world-camera-buttons button:disabled{opacity:.5}
+.world-control-label{display:grid;place-items:center;flex-shrink:0;width:80px;min-height:44px;padding:8px;border:1px solid #d9cfd9;border-radius:9px;background:#f1eaf1;font-size:15px;color:#6d5279}
+.has-touch-controls .world-topbar{top:var(--world-top);left:var(--world-left);right:var(--world-right)}
+.has-touch-controls .world-discoveries{top:calc(var(--world-top) + 66px);left:var(--world-left)}
+.has-touch-controls .world-key-hints,.has-touch-controls .world-minimap,.has-touch-controls .interact-key{display:none}
+.has-touch-controls .world-bottom-left{left:var(--world-left);bottom:var(--world-bottom)}
+.has-touch-controls .world-help{min-height:44px;padding:10px 14px;font-size:15px}
+.has-touch-controls .world-touch-camera{display:block}
+.has-touch-controls .world-joystick-wrap{display:flex;left:var(--world-left);bottom:calc(var(--world-bottom) + 48px);gap:6px}
+.has-touch-controls .world-joystick{width:112px;height:112px;border:2px solid #fff9;background:#fffaf057}
+.has-touch-controls .joystick-cross:before,.has-touch-controls .joystick-cross:after{top:16px;height:76px}
+.has-touch-controls .world-joystick-wrap>span{display:block;color:#403942;text-shadow:none;background:#fffaf0eb;padding:3px 10px;border-radius:12px;font-size:14px;line-height:1.5;letter-spacing:0}
+.has-touch-controls .world-interact-area{left:auto;right:var(--world-right);bottom:calc(var(--world-bottom) + 178px);transform:none;max-width:calc(100% - 160px - env(safe-area-inset-left) - env(safe-area-inset-right))}
+.has-touch-controls .world-interact{min-height:76px;gap:10px;padding:14px}
+.has-touch-controls .world-interact>span:nth-child(2){font-size:16px;line-height:1.4;max-width:none}
+.has-touch-controls .world-interact small{font-size:14px}
+.has-touch-controls .world-welcome-foot{font-size:14px;line-height:1.5}
+.has-touch-controls .world-controls>div{align-items:flex-start;font-size:16px;line-height:1.55}
+.has-touch-controls .modal-backdrop,.has-touch-controls .world-encounter-backdrop{padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+.has-touch-controls .modal,.has-touch-controls .world-encounter{max-height:calc(100dvh - max(14px,env(safe-area-inset-top)) - max(14px,env(safe-area-inset-bottom)))}
+.has-touch-controls .modal-header .icon-button,.has-touch-controls .world-encounter-close{min-width:44px;min-height:44px}
+@media(max-height:500px) and (orientation:landscape){
+  .has-touch-controls .world-discoveries{display:none}
+  .has-touch-controls .world-brand>span:last-child{display:none}
+  .has-touch-controls .world-topbar{top:max(10px,env(safe-area-inset-top))}
+  .has-touch-controls .world-joystick{width:96px;height:96px}
+  .has-touch-controls .joystick-cross:before,.has-touch-controls .joystick-cross:after{top:12px;height:68px}
+  .has-touch-controls .world-interact-area{left:50%;right:auto;bottom:calc(var(--world-bottom) + 36px);transform:translateX(-50%);max-width:calc(100% - 360px - env(safe-area-inset-left) - env(safe-area-inset-right))}
+  .has-touch-controls .world-interact{min-height:64px;padding:10px 13px}
+  .has-touch-controls .world-notice{top:78px;font-size:14px}
+  .has-touch-controls .world-welcome{left:var(--world-left);bottom:var(--world-bottom);width:420px;max-height:calc(100dvh - 86px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;padding:20px}
+  .has-touch-controls .world-welcome h1{font-size:29px;margin:10px 0}
+  .has-touch-controls .world-welcome>p{max-width:none;font-size:16px;line-height:1.5;margin-bottom:14px}
+  .has-touch-controls .world-welcome-foot{display:none}
+  .has-touch-controls .world-map-layout>.world-island-map,.has-touch-controls .world-map-foot{display:none}
+  .has-touch-controls .world-map-layout{display:block;margin-top:12px}
+  .has-touch-controls .world-map-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .has-touch-controls .world-map-list>button{padding:8px}
+  .has-touch-controls .world-map-choice{padding-top:10px;margin-top:10px;gap:10px}
+  .has-touch-controls .world-map-choice>div{width:auto;margin:0 auto 0 0}
+  .has-touch-controls .world-map-choice .world-kicker{display:none}
+  .has-touch-controls .world-map-choice h3{margin:0;font-size:17px}
+}

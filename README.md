@@ -6,7 +6,7 @@ Your personal HPY space: a little 3D world to wander, with room for uncertainty,
 
 On this Mac, double-click **Open HPY.command**, then open [your HPY space](http://127.0.0.1:4173). Your passcode is unchanged; the delivered local copy is already configured. Keep the launcher’s terminal open while using the app. Press **Control+C** there to stop it, and double-click the launcher whenever you want to return.
 
-This address works on this computer while its server is running. To access HPY from a phone or another computer, follow [the hosting instructions](server/DEPLOY.md) for an HTTPS server with persistent storage. This copy has not been published online.
+This address works on this computer while its server is running. For a permanent link you can access from a phone or another computer, follow [the hosting instructions](server/DEPLOY.md) for an HTTPS server with persistent storage.
 
 ## Run a fresh clone
 
@@ -35,7 +35,10 @@ The world opens after you unlock. Choose **Let’s wander** to start exploring t
 | **Shift** while walking | Run a little. |
 | **Space** | Make a small hop, unless Gentler motion is enabled. |
 | **Touch joystick** | Drag in the direction you want to walk. |
+| **Mobile camera buttons** | Zoom out, reset the view, or zoom in without a gesture. |
 | **Map → select a place → Walk here** | Let the traveler find a route to that destination. |
+
+On phones and tablets, a thumb joystick and camera buttons appear automatically. Hold the joystick to walk, release it to stop, and swipe the world with your other thumb to look around. Pinch with two fingers to zoom, or use the **+** and **−** buttons. Tap a nearby place’s invitation to enter. **Controls** shows instructions for your screen, and the map offers a complete alternative to steering. Both portrait and landscape layouts keep the controls within reach.
 
 Six places invite different kinds of practice:
 

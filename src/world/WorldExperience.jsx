@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Check, Compass, Flower2, Footprints, HelpCircle, Layers, LockKeyhole, Map, Maximize2, MoreHorizontal, Move, Pause, Settings2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, Compass, Flower2, Footprints, HelpCircle, Layers, LockKeyhole, Map, Maximize2, Minus, MoreHorizontal, Move, Pause, Plus, RotateCcw, Settings2, ShieldCheck, Sparkles } from 'lucide-react';
 import { Brand, BrandMark } from '../Brand';
 import { Modal } from '../UI';
 import WorldCanvas from './WorldCanvas';
@@ -10,6 +10,7 @@ import './world.css';
 
 const COLORS = [{ name: 'Lilac', value: '#b590d0' }, { name: 'Coral', value: '#df917a' }, { name: 'Moss', value: '#829f72' }, { name: 'Sky', value: '#7ca5c3' }];
 const INITIAL_SCENE = { position: { x: 0, z: 14 }, nearest: null, projected: [], walking: false, destination: null };
+const TOUCH_LAYOUT = '(any-pointer: coarse), (max-width: 700px), (max-height: 500px) and (max-width: 1000px)';
 
 function IslandMap({ position, visited, selected, onSelect, miniature = false }) {
   const point = (x, z) => ({ x: 100 + x * 2.15, y: 101 + z * 2.15 });
@@ -34,24 +35,66 @@ function IslandMap({ position, visited, selected, onSelect, miniature = false })
 function Joystick({ controller, disabled }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const pointer = useRef(null);
-  const stop = useCallback(() => { pointer.current = null; setOffset({ x: 0, y: 0 }); controller.current?.setMovement({ x: 0, y: 0 }); }, [controller]);
+  const stop = useCallback(event => {
+    const active = pointer.current;
+    // A second finger must not take over or release the movement finger.
+    if (typeof event?.pointerId === 'number' && event.pointerId !== active?.id) return;
+    pointer.current = null;
+    if (active?.element.hasPointerCapture(active.id)) active.element.releasePointerCapture(active.id);
+    setOffset({ x: 0, y: 0 });
+    controller.current?.setMovement({ x: 0, y: 0, active: false });
+  }, [controller]);
   useEffect(() => { if (disabled) stop(); }, [disabled, stop]);
-  useEffect(() => { window.addEventListener('blur', stop); return () => { window.removeEventListener('blur', stop); controller.current?.setMovement({ x: 0, y: 0 }); }; }, [stop, controller]);
+  useEffect(() => {
+    const visibility = () => { if (document.hidden) stop(); };
+    window.addEventListener('blur', stop);
+    document.addEventListener('visibilitychange', visibility);
+    return () => { window.removeEventListener('blur', stop); document.removeEventListener('visibilitychange', visibility); stop(); };
+  }, [stop]);
   const move = event => {
-    if (pointer.current !== event.pointerId) return;
+    if (pointer.current?.id !== event.pointerId) return;
     const box = event.currentTarget.getBoundingClientRect();
     const dx = event.clientX - box.left - box.width / 2, dy = event.clientY - box.top - box.height / 2;
-    const scale = Math.max(1, Math.hypot(dx, dy) / 34);
+    const radius = Math.max(20, (box.width - 48) / 2);
+    const distance = Math.hypot(dx, dy), scale = Math.max(1, distance / radius);
     setOffset({ x: dx / scale, y: dy / scale });
-    controller.current?.setMovement({ x: dx / scale / 34, y: -dy / scale / 34 });
+    const strength = Math.max(0, (Math.min(1, distance / radius) - 0.12) / 0.88);
+    controller.current?.setMovement({ x: distance ? dx / distance * strength : 0, y: distance ? -dy / distance * strength : 0, active: true });
   };
   return <div className="world-joystick-wrap"><button type="button" className="world-joystick" aria-label="Movement joystick: drag in the direction you want to walk" disabled={disabled}
-    onPointerDown={e => { pointer.current = e.pointerId; e.currentTarget.setPointerCapture(e.pointerId); move(e); }} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>
+    onPointerDown={e => {
+      if (disabled || pointer.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      e.preventDefault();
+      pointer.current = { id: e.pointerId, element: e.currentTarget };
+      e.currentTarget.setPointerCapture(e.pointerId); move(e);
+    }} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>
     <span className="joystick-cross"/><span className="joystick-thumb" style={{ transform: `translate(${offset.x}px,${offset.y}px)` }}><Move size={23}/></span>
-  </button><span>move</span></div>;
+  </button><span>Drag to move</span></div>;
+}
+
+function ControlInstructions({ touch }) {
+  const rows = touch ? [
+    ['Move', 'Drag the joystick with your thumb. Let go to stop.'],
+    ['Look', 'Swipe left or right across the world. You can look while walking.'],
+    ['Zoom', 'Pinch with two fingers, or tap the + and − camera buttons.'],
+    ['Tap', 'Tap open ground to walk there. Tap a nearby place’s invitation to explore.'],
+    ['Map', 'Pick a place and tap Walk here, or use Open practice to go straight in.'],
+  ] : [
+    ['W A S D', 'or arrow keys to move'], ['Click', 'on the ground to walk there'],
+    ['Drag', 'the world to look around'], ['Scroll', 'to move the camera closer'],
+    ['E', 'to explore a nearby place'], ['Shift', 'to run a little'], ['Space', 'for a little hop'],
+  ];
+  return <div className="world-controls">{rows.map(([label, text]) => <div key={label}>{touch ? <span className="world-control-label">{label}</span> : <kbd>{label}</kbd>}<span>{text}</span></div>)}</div>;
 }
 
 export default function WorldExperience({ draft, onDraft, onSave, renderActivity, onOverview, onLock, onPreferences, onPause, onSupport, onPrivacy, externalPaused, name, loadError }) {
+  const [touchControls, setTouchControls] = useState(() => window.matchMedia(TOUCH_LAYOUT).matches);
+  useEffect(() => {
+    const query = window.matchMedia(TOUCH_LAYOUT);
+    const update = () => setTouchControls(query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const [progress, setProgress] = useState(() => ({ entered: false, visited: [], completed: [], color: COLORS[0].value, reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches, encounters: {}, ...draft }));
   const progressRef = useRef(progress), onDraftRef = useRef(onDraft);
   onDraftRef.current = onDraft;
@@ -98,7 +141,7 @@ export default function WorldExperience({ draft, onDraft, onSave, renderActivity
   const station = WORLD_STATIONS.find(s => s.id === selected);
   const near = typeof scene.nearest === 'string' ? WORLD_STATIONS.find(s => s.id === scene.nearest) : scene.nearest;
 
-  return <main className={`world-experience ${progress.entered ? 'has-entered' : 'is-arriving'} ${progress.reducedMotion ? 'reduced-motion' : ''}`} aria-label="HPY: your world">
+  return <main className={`world-experience ${progress.entered ? 'has-entered' : 'is-arriving'} ${progress.reducedMotion ? 'reduced-motion' : ''} ${touchControls ? 'has-touch-controls' : ''}`} aria-label="HPY: your world" onPointerDownCapture={event => { if (event.pointerType === 'touch') setTouchControls(true); }}>
     <div className="world-scene" ref={sceneElement} inert={paused}><WorldCanvas ref={controller} paused={paused} reducedMotion={progress.reducedMotion} characterColor={progress.color} completed={progress.completed} onUpdate={setScene} onInteract={interact} onDiscover={discover} onReady={() => setReady(true)} onError={() => setError(true)}/></div>
     <div className="world-vignette" aria-hidden="true"/>
     <div className="world-hud" inert={overlayOpen}>
@@ -108,20 +151,21 @@ export default function WorldExperience({ draft, onDraft, onSave, renderActivity
       {progress.entered && <>
         <div className="world-discoveries"><span className="world-discovery-icon"><Compass size={19}/></span><div><span>FOLLOW YOUR CURIOSITY</span><p>{progress.visited.length} of 6 places discovered</p></div><div className="world-discovery-dots" aria-label={`${progress.completed.length} moment${progress.completed.length === 1 ? '' : 's'} carried`}>{WORLD_STATIONS.map(s => <span key={s.id} title={`${s.label}${progress.completed.includes(s.id) ? ' · moment carried' : ''}`} className={progress.completed.includes(s.id) ? 'carried' : progress.visited.includes(s.id) ? 'found' : ''}>{progress.completed.includes(s.id) ? <Flower2 size={12}/> : null}</span>)}</div></div>
         {!error && <div className="world-place-labels" aria-label="Nearby places">{(scene.projected || []).filter(p => p.visible && p.distance < 32 && p.y > 230).sort((a, b) => a.distance - b.distance).slice(0, 3).map(p => { const place = WORLD_STATIONS.find(s => s.id === p.id); if (!place) return null; return <button key={p.id} className={`world-place-label ${near?.id === p.id ? 'near' : ''}`} style={{ left: p.x, top: p.y }} onClick={() => near?.id === p.id ? interact(p.id) : travel(p.id)} aria-label={`${near?.id === p.id ? 'Explore' : 'Walk to'} ${place.label}`}><span className="world-place-marker">{progress.completed.includes(p.id) ? <Flower2 size={15}/> : <Sparkles size={13}/>}</span><span>{place.label}</span></button>; })}</div>}
-        <div className="world-bottom-left"><button className="world-help" onClick={() => setPanel('help')}><HelpCircle size={16}/><span>How to wander</span></button><div className="world-key-hints"><kbd>W A S D</kbd><span>move</span><i/>click to walk<i/>drag to look</div></div>
+        <div className="world-bottom-left"><button className="world-help" onClick={() => setPanel('help')}><HelpCircle size={16}/><span>{touchControls ? 'Controls' : 'How to wander'}</span></button><div className="world-key-hints"><kbd>W A S D</kbd><span>move</span><i/>click to walk<i/>drag to look</div></div>
         <button className="world-minimap" onClick={() => setPanel('map')} aria-label="Open island map"><IslandMap position={scene.position} visited={progress.visited} miniature/><span>Island map <ArrowRight size={12}/></span></button>
         {!error && <Joystick controller={controller} disabled={paused}/>}
+        {!error && <div className="world-touch-camera"><p>Swipe to look<br/>Pinch to zoom</p><div className="world-camera-buttons" role="group" aria-label="Camera controls"><button aria-label="Zoom out" title="Zoom out" disabled={paused} onClick={() => controller.current?.zoomBy(2)}><Minus size={21}/></button><button aria-label="Reset camera view" title="Reset camera view" disabled={paused} onClick={() => controller.current?.resetView()}><RotateCcw size={20}/></button><button aria-label="Zoom in" title="Zoom in" disabled={paused} onClick={() => controller.current?.zoomBy(-2)}><Plus size={21}/></button></div></div>}
         {!error && <div className="world-interact-area">{near ? <button className="world-interact" onClick={() => interact(near.id)}><span className="interact-key">E</span><span><small>{near.label}</small>{ENCOUNTERS[near.id]?.activityLabel || 'Explore this place'}</span><ArrowRight size={18}/></button> : scene.walking && <div className="world-walking"><Footprints size={15}/>{scene.destination ? `On your way to ${WORLD_STATIONS.find(s => s.id === scene.destination)?.label || 'a new place'}` : 'Taking the scenic route'}</div>}</div>}
-        <p className="sr-only" aria-live="off">Your position: {scene.position.x.toFixed(1)}, {scene.position.z.toFixed(1)}. {near ? `Near ${near.label}. Press E to explore.` : 'Use the map to walk to a place.'}</p>
+        <p className="sr-only" aria-live="off">Your position: {scene.position.x.toFixed(1)}, {scene.position.z.toFixed(1)}. {near ? `Near ${near.label}. ${touchControls ? 'Tap its invitation to explore.' : 'Press E to explore.'}` : 'Use the map to walk to a place.'}</p>
       </>}
-      {!progress.entered && !error && <section className="world-welcome"><span className="world-kicker"><span/>YOUR WORLD, AT YOUR PACE</span><h1>{name ? `Hey ${name}.` : 'Come as you are.'}<br/><em>Wander a little.</em></h1><p>Six places to get curious. A little room to practice being you. Follow a path and see what finds you.</p><button className="world-enter" disabled={!ready} onClick={enter}>{ready ? 'Let’s wander' : 'Growing your world…'}<ArrowRight size={19}/></button><span className="world-welcome-foot">No finish line. No perfect way to play.</span></section>}
+      {!progress.entered && !error && <section className="world-welcome"><span className="world-kicker"><span/>YOUR WORLD, AT YOUR PACE</span><h1>{name ? `Hey ${name}.` : 'Come as you are.'}<br/><em>Wander a little.</em></h1><p>Six places to get curious. A little room to practice being you. Follow a path and see what finds you.</p><button className="world-enter" disabled={!ready} onClick={enter}>{ready ? 'Let’s wander' : 'Growing your world…'}<ArrowRight size={19}/></button><span className="world-welcome-foot">{touchControls ? 'Drag to move. Swipe to look. Take your time.' : 'No finish line. No perfect way to play.'}</span></section>}
       {!ready && !error && <div className="world-loading" role="status"><BrandMark size={40}/><span>A little world is taking shape…</span></div>}
       {error && <section className="world-fallback"><BrandMark size={48}/><h1>The world couldn’t open here.</h1><p>You can still visit every practice. Try a browser with WebGL enabled when you’d like to wander.</p><button className="button dark" onClick={onOverview}>Explore the sections<ArrowRight size={16}/></button></section>}
     </div>
     {notice && !overlayOpen && progress.entered && <div className="world-notice" role="status"><Flower2 size={15}/>{notice}</div>}
     {loadError && <div className="world-load-error" role="alert">Your saved reflections couldn’t load: {loadError}</div>}
     {panel === 'map' && <Modal title="Where shall we wander?" className="world-map-dialog" onClose={closePanel}><p>Follow a path, or open a practice wherever you are.</p><div className="world-map-layout"><IslandMap position={scene.position} visited={progress.visited} selected={selected} onSelect={setSelected}/><div className="world-map-list">{WORLD_STATIONS.map((s, i) => <button key={s.id} className={selected === s.id ? 'selected' : ''} onClick={() => setSelected(s.id)}><span>{progress.completed.includes(s.id) ? <Flower2 size={14}/> : `0${i + 1}`}</span><div><strong>{s.label}</strong><small>{ENCOUNTERS[s.id].subtitle}</small></div>{selected === s.id && <ArrowRight size={16}/>}</button>)}</div></div><div className="world-map-choice"><div><span className="world-kicker">LET CURIOSITY LEAD</span><h3>{station.label}</h3></div><button className="button dark" disabled={error || !ready} onClick={() => travel(selected)}><Footprints size={17}/>Walk here</button><button className="text-button" onClick={() => openActivity(selected)}>Open practice<ArrowRight size={14}/></button></div><p className="world-map-foot">The coral dot is you. Flowers mark moments you’ve carried in this session.</p></Modal>}
-    {panel === 'help' && <Modal title="Take the scenic route." className="world-help-dialog" onClose={closePanel}><p>There’s no score to chase. Go somewhere that feels interesting, and pause there for a question.</p><div className="world-controls"><div><kbd>W A S D</kbd><span>or arrow keys to move</span></div><div><kbd>Click</kbd><span>on the ground to walk there</span></div><div><kbd>Drag</kbd><span>the world to look around</span></div><div><kbd>Scroll</kbd><span>to move the camera closer</span></div><div><kbd>E</kbd><span>to explore a nearby place</span></div><div><kbd>Shift</kbd><span>to run a little</span></div><div><kbd>Space</kbd><span>for a little hop</span></div><div><Move size={19}/><span>On touch screens, drag the joystick to walk.</span></div></div><p className="small">The map can guide your walk or take you straight into a practice. Reflections are only saved when you choose.</p><button className="button dark" onClick={closePanel}>Back to wandering<ArrowRight size={16}/></button></Modal>}
+    {panel === 'help' && <Modal title="Take the scenic route." className="world-help-dialog" onClose={closePanel}><p>There’s no score to chase. Go somewhere that feels interesting, and pause there for a question.</p><ControlInstructions touch={touchControls}/><p className="small">The map can guide your walk or take you straight into a practice. Reflections are only saved when you choose.</p><button className="button dark" onClick={closePanel}>Back to wandering<ArrowRight size={16}/></button></Modal>}
     {panel === 'menu' && <Modal title="Make this world yours." className="world-menu-dialog" onClose={closePanel}><span className="world-kicker">YOUR LITTLE TRAVELER</span><div className="world-color-options">{COLORS.map(c => <button key={c.name} aria-label={`${c.name} jacket`} aria-pressed={progress.color === c.value} style={{ '--jacket': c.value }} onClick={() => updateProgress({ color: c.value })}>{progress.color === c.value && <Check size={18}/>}</button>)}<span>A color for today</span></div><label className="world-motion-option"><input type="checkbox" checked={progress.reducedMotion} onChange={e => updateProgress({ reducedMotion: e.target.checked })}/><span>Gentler motion<small>Quieter scenery and instant camera adjustments</small></span></label><div className="world-menu-items"><button onClick={() => { controller.current?.resetView(); closePanel(); }}><Maximize2 size={18}/>Reset my view<ArrowRight size={15}/></button><button onClick={() => { closePanel(); onPause(); }}><Pause size={18}/>Take a small pause<ArrowRight size={15}/></button><button onClick={() => { closePanel(); onPreferences(); }}><Settings2 size={18}/>My name & what I’m practicing<ArrowRight size={15}/></button><button onClick={onOverview}><Layers size={18}/>Browse all sections<ArrowRight size={15}/></button><button onClick={() => setPanel('help')}><HelpCircle size={18}/>Movement & controls<ArrowRight size={15}/></button><button onClick={() => { closePanel(); onPrivacy(); }}><ShieldCheck size={18}/>Privacy & my reflections<ArrowRight size={15}/></button><button onClick={() => { closePanel(); onSupport(); }}><Flower2 size={18}/>Find real-world support<ArrowRight size={15}/></button><button onClick={onLock}><LockKeyhole size={18}/>Lock my space<ArrowRight size={15}/></button></div><p className="small muted">Your discoveries and unsaved words stay for this session. Your journal keeps only what you choose to save.</p></Modal>}
     {encounter && <div className="world-encounter-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setEncounter(null); }}><Encounter stationId={encounter} onClose={() => setEncounter(null)} onDeepPractice={openActivity} onSave={onSave} onComplete={complete} completed={progress.completed.includes(encounter)} draft={progress.encounters[encounter]} onDraft={value => updateProgress({ encounters: { ...progressRef.current.encounters, [encounter]: value } })}/></div>}
     {activity && <Modal title={activity === 'journal' ? 'Things you chose to keep' : ENCOUNTERS[activity]?.title || 'A little room to practice'} className="world-activity" onClose={() => setActivity(null)}><button className="text-button world-back" onClick={() => setActivity(null)}><ArrowLeft size={15}/>Back to the world</button>{renderActivity(activity, () => setActivity(null), setActivity)}</Modal>}

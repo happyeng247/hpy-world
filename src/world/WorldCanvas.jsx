@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react
 import * as THREE from 'three';
 import { createEnvironment, terrainHeight, WORLD_RADIUS, WORLD_STATIONS } from './environment.js';
 import { keyboardVector, stepMove, planPath, isWalkable, nearestWalkable } from './movement.js';
+import { createCanvasGestures } from './gestures.js';
 
 const SPAWN = { x: 0, z: 14 };
 const INTERACTION_RADIUS = 3.3;
@@ -93,6 +94,7 @@ const WorldCanvas = forwardRef(function WorldCanvas({
   useImperativeHandle(forwardedRef, () => ({
     travelTo: (id) => runtimeRef.current?.travelTo(id) ?? false,
     resetView: () => runtimeRef.current?.resetView(),
+    zoomBy: (amount) => runtimeRef.current?.zoomBy(amount) ?? false,
     setMood: (mood) => runtimeRef.current?.setMood(mood),
     setMovement: (movement) => runtimeRef.current?.setMovement(movement),
   }), []);
@@ -104,11 +106,11 @@ const WorldCanvas = forwardRef(function WorldCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
     let renderer, scene, environment, observer, frame = 0, disposed = false, failed = false;
-    let removeListeners = () => {};
+    let removeListeners = () => {}, releaseInputs = () => {};
     const textures = new Set();
     function cleanup() {
       if (disposed) return;
-      disposed = true; cancelAnimationFrame(frame); removeListeners(); observer?.disconnect(); runtimeRef.current = null;
+      disposed = true; cancelAnimationFrame(frame); releaseInputs(); removeListeners(); observer?.disconnect(); runtimeRef.current = null;
       environment?.dispose?.();
       if (scene) {
         const geometries = new Set(), materials = new Set();
@@ -185,10 +187,10 @@ const WorldCanvas = forwardRef(function WorldCanvas({
       const dotMatrix = new THREE.Object3D(); dotMatrix.rotation.x = -Math.PI / 2;
       const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2(), projection = new THREE.Vector3(), orbTarget = new THREE.Vector3();
       const keys = new Set(), discovered = new Set();
-      const pointers = new Map();
-      let joystick = { x: 0, y: 0 }, route = [], destination = null, walking = false, nearest = null;
+      const gestures = createCanvasGestures();
+      let joystick = { x: 0, y: 0 }, joystickEngaged = false, route = [], destination = null, walking = false, nearest = null;
       let hop = 0, hopVelocity = 0, stride = 0, walkAmount = 0, mood = 'steady';
-      let gesture = null, pinchDistance = 0, width = 1, height = 1, ready = false;
+      let width = 1, height = 1, ready = false;
       let lastTime = performance.now(), elapsed = 0, lastUpdate = -Infinity, lastDraw = -Infinity, stalled = 0;
       const limit = (value, min, max) => Math.max(min, Math.min(max, value));
       const inputBlocked = () => latest.current.paused || document.hidden || editableTarget(document.activeElement);
@@ -212,10 +214,12 @@ const WorldCanvas = forwardRef(function WorldCanvas({
         trailDots.count = count; trailDots.instanceMatrix.needsUpdate = true;
       }
       function clearMovement() {
-        keys.clear(); joystick = { x: 0, y: 0 }; setRoute([]); walking = false;
+        keys.clear(); joystick = { x: 0, y: 0 }; joystickEngaged = false; setRoute([]); walking = false;
         hop = 0; hopVelocity = 0;
-        pointers.clear(); gesture = null; pinchDistance = 0; canvas.style.cursor = 'grab';
+        for (const id of gestures.clear()) releaseCapture(id);
+        canvas.style.cursor = 'grab';
       }
+      releaseInputs = clearMovement;
       function travelTo(id) {
         if (inputBlocked()) return false;
         const station = WORLD_STATIONS.find((item) => item.id === id);
@@ -267,40 +271,42 @@ const WorldCanvas = forwardRef(function WorldCanvas({
         }
       }
       function keyUp(event) { keys.delete(event.code); }
+      function releaseCapture(id) {
+        // A browser interruption can release capture before its cancel event.
+        try { if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id); } catch { /* Already released. */ }
+      }
       function pointerDown(event) {
         if (inputBlocked() || (event.pointerType === 'mouse' && event.button !== 0)) return;
+        if (!gestures.start(event.pointerId, event.clientX, event.clientY, performance.now(), { tapAllowed: !joystickEngaged })) return;
+        if (event.cancelable) event.preventDefault();
         canvas.focus({ preventScroll: true });
-        canvas.setPointerCapture(event.pointerId);
-        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-        if (pointers.size === 1) gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false, multi: false };
-        else {
-          if (gesture) gesture.multi = true;
-          const points = [...pointers.values()]; pinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-        }
+        try { canvas.setPointerCapture(event.pointerId); }
+        catch { gestures.cancel(event.pointerId); }
       }
       function pointerMove(event) {
-        if (!pointers.has(event.pointerId) || inputBlocked()) return;
-        pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-        if (pointers.size >= 2) {
-          const points = [...pointers.values()], nextDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-          if (pinchDistance) targetDistance = limit(targetDistance + (pinchDistance - nextDistance) * 0.03, 11, 24);
-          pinchDistance = nextDistance; return;
+        if (!gestures.has(event.pointerId)) return;
+        if (inputBlocked()) { clearMovement(); return; }
+        if (event.cancelable) event.preventDefault();
+        const change = gestures.move(event.pointerId, event.clientX, event.clientY);
+        if (change?.type === 'pinch') {
+          targetDistance = limit(targetDistance * change.scale, 11, 24);
+        } else if (change?.type === 'drag') {
+          targetYaw -= change.dx * 0.005;
+          canvas.style.cursor = 'grabbing';
         }
-        if (!gesture || gesture.id !== event.pointerId || gesture.multi) return;
-        const dx = event.clientX - gesture.lastX;
-        if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 6) gesture.moved = true;
-        if (gesture.moved) { targetYaw -= dx * 0.005; canvas.style.cursor = 'grabbing'; }
-        gesture.lastX = event.clientX; gesture.lastY = event.clientY;
       }
       function pointerUp(event) {
-        const click = gesture && gesture.id === event.pointerId && !gesture.moved && !gesture.multi && !inputBlocked();
-        pointers.delete(event.pointerId);
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-        if (!pointers.size) { gesture = null; pinchDistance = 0; canvas.style.cursor = 'grab'; }
-        if (click) groundClick(event.clientX, event.clientY);
+        const tap = gestures.end(event.pointerId, event.clientX, event.clientY, performance.now());
+        releaseCapture(event.pointerId);
+        canvas.style.cursor = gestures.size ? 'grabbing' : 'grab';
+        // A second finger can look while the first holds the joystick. Releasing
+        // that finger must not start a route and cancel the ongoing manual walk.
+        if (tap && !inputBlocked() && !joystickEngaged) groundClick(tap.x, tap.y);
       }
       function pointerCancel(event) {
-        pointers.delete(event.pointerId); gesture = null; pinchDistance = 0; canvas.style.cursor = 'grab';
+        gestures.cancel(event.pointerId);
+        releaseCapture(event.pointerId);
+        canvas.style.cursor = gestures.size ? 'grabbing' : 'grab';
       }
       function wheel(event) {
         if (inputBlocked()) return;
@@ -407,16 +413,26 @@ const WorldCanvas = forwardRef(function WorldCanvas({
       runtimeRef.current = {
         travelTo,
         resetView() { targetYaw = 0.22; targetDistance = 17.5; },
+        zoomBy(amount) {
+          if (inputBlocked() || !Number.isFinite(amount)) return false;
+          const next = limit(targetDistance + amount, 11, 24);
+          if (next === targetDistance) return false;
+          targetDistance = next;
+          return true;
+        },
         setMood(value) {
           mood = value;
           const tones = { steady: '#c9a1e4', tender: '#eba5b8', restless: '#e6c183', curious: '#91c5b0', hopeful: '#a1bedb', calm: '#91c5b0', sad: '#a1bedb', anxious: '#e6c183' };
           orbCoreMaterial.color.set(tones[mood] || '#c9a1e4');
         },
         setMovement(value = {}) {
-          if (inputBlocked()) { joystick = { x: 0, y: 0 }; return; }
+          if (inputBlocked()) { clearMovement(); return; }
           const x = Number.isFinite(value.x) ? value.x : 0, y = Number.isFinite(value.y) ? value.y : 0, length = Math.max(1, Math.hypot(x, y));
-          joystick = { x: x / length, y: y / length };
-          if (Math.hypot(x, y) > 0.04) setRoute([]);
+          const engaged = typeof value.active === 'boolean' ? value.active : Math.hypot(x, y) > 0.04;
+          if (engaged && !joystickEngaged) gestures.suppressTaps();
+          joystickEngaged = engaged;
+          joystick = engaged ? { x: x / length, y: y / length } : { x: 0, y: 0 };
+          if (engaged) setRoute([]);
         },
         setPaused(value) { if (value) clearMovement(); lastTime = performance.now(); },
         setColor(value) { avatar.coat.color.set(value); },
@@ -427,6 +443,7 @@ const WorldCanvas = forwardRef(function WorldCanvas({
         window.removeEventListener('keydown', keyDown); window.removeEventListener('keyup', keyUp); window.removeEventListener('blur', clearMovement);
         document.removeEventListener('visibilitychange', visibility);
         canvas.removeEventListener('pointerdown', pointerDown); canvas.removeEventListener('pointermove', pointerMove); canvas.removeEventListener('pointerup', pointerUp); canvas.removeEventListener('pointercancel', pointerCancel);
+        canvas.removeEventListener('lostpointercapture', pointerCancel);
         canvas.removeEventListener('wheel', wheel); canvas.removeEventListener('webglcontextlost', lostContext);
       };
       window.addEventListener('keydown', keyDown);
@@ -437,6 +454,7 @@ const WorldCanvas = forwardRef(function WorldCanvas({
       canvas.addEventListener('pointermove', pointerMove);
       canvas.addEventListener('pointerup', pointerUp);
       canvas.addEventListener('pointercancel', pointerCancel);
+      canvas.addEventListener('lostpointercapture', pointerCancel);
       canvas.addEventListener('wheel', wheel, { passive: false });
       canvas.addEventListener('webglcontextlost', lostContext);
       observer = new ResizeObserver(resize); observer.observe(canvas);
@@ -448,8 +466,8 @@ const WorldCanvas = forwardRef(function WorldCanvas({
   }, []);
 
   return <canvas ref={canvasRef} className="world-canvas" role="img" tabIndex={0}
-    aria-label="Your explorable HPY island. Walk with W A S D or arrow keys, drag to turn the camera, and press E near a place to enter. You can also choose a place from the island map."
-    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', touchAction: 'none', cursor: 'grab', outlineOffset: '-5px' }} />;
+    aria-label="Your explorable HPY island. Tap the ground to walk, drag one finger to look around, and pinch with two fingers to zoom. You can also use the movement control or the island map. On a keyboard, walk with W A S D or arrow keys and press E near a place to enter."
+    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', cursor: 'grab', outlineOffset: '-5px' }} />;
 });
 
 export default WorldCanvas;
