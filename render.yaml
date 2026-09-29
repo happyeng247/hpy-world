@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: hpy-growth
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: node server/index.mjs
+    healthCheckPath: /api/session
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATA_DIR
+        value: /var/data/becoming
+      - key: APP_PASSCODE
+        sync: false
+      - key: APP_ORIGIN
+        sync: false
+    disk:
+      name: becoming-private-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,0 +1,424 @@
+/* Comfortable reading sizes for the original practices and shared dialogs. */
+:is(.app-shell, .world-experience .world-activity),
+.gate,
+.modal:not([class*="world-"]) {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .hero-copy > p, .page-heading > p, .checkin-title > p,
+  .mode-card p, .chat-message p, .chat-message.user p,
+  .gentle-aside > p, .journey-panel > p, .practice-card > p,
+  .scenario-card p, .skills-banner p, .skill-card p, .wisdom-card p,
+  .landscape-reflection p, .journal-card p, .journal-empty p,
+  .helper-note p, .reflection-quote p, .practice-summary p,
+  .journal-full-body, .scenario-opening
+) {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .small, .journey-panel > p.small, .gentle-aside > span.small,
+  .practice-bottom .small, .journal-foot .small,
+  .hero-footnote, .section-note, .mode-meta, .message-label,
+  .composer-bottom > span, .script-disclosure, .focus-indicator,
+  .journal-card time, .source-link, .landscape-bottom-note,
+  .home-footer p, .home-footer > span, .handwritten
+) {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #766771;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .eyebrow, .hero-copy > .eyebrow, .checkin-title .eyebrow,
+  .section-title .eyebrow, .mode-card .card-eyebrow,
+  .page-heading > .eyebrow, .journey-panel > .eyebrow,
+  .gentle-aside .eyebrow, .skill-card .eyebrow, .wisdom-card .eyebrow,
+  .journal-card .eyebrow, .practice-summary .eyebrow,
+  .reflection-quote .eyebrow, .pocket-prompt .eyebrow,
+  .personal-doors > .eyebrow, .step-counter, .soft-label,
+  .chat-panel-header .soft-label, .landscape-world-label,
+  .hero-orbit-label, .mode-badge
+) {
+  font-size: 12px;
+  line-height: 1.55;
+  letter-spacing: 1px;
+  color: #7c6578;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .button, .button.small-button, .text-button, .chip, .value-chip,
+  .suggestion, .chat-composer .suggestion, .step-list button,
+  .journal-toolbar .button, .practice-bottom .button,
+  .practice-bottom .text-button, .gentle-aside .button,
+  .landscape-reflection .button, .personal-doors .chip,
+  .skill-card .text-button, .wisdom-card .text-button,
+  .journey-panel .text-button, .pocket-prompt .text-button,
+  .journal-foot .text-button, .journal-toolbar .text-button,
+  .page-heading .back-button
+) {
+  font-size: 16px;
+  line-height: 1.4;
+  min-height: 44px;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.button, .button.small-button) {
+  padding: 13px 20px;
+  gap: 12px;
+  white-space: normal;
+  text-align: center;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.button, .text-button, .source-link) > svg {
+  flex-shrink: 0;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.chip, .value-chip, .suggestion) {
+  padding: 10px 14px;
+  white-space: normal;
+  text-align: left;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .input, .textarea, .chat-composer textarea, .checkin-note input,
+  .journal-toolbar select, .landscape-reflection .textarea
+) {
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.input, .textarea, .chat-composer textarea)::placeholder {
+  font-size: 16px;
+}
+
+:is(.app-shell, .world-experience .world-activity) .field-label {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.field-label span, .error-text, .save-control .error-text, .error-banner) {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+:is(.app-shell, .world-experience .world-activity) .page-heading h1 {
+  font-size: clamp(34px, 3.4vw, 44px);
+  line-height: 1.18;
+  letter-spacing: -1.2px;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .practice-card h2, .journal-empty h2, .section-title h2,
+  .checkin-title h2, .landscape-reflection h2,
+  .landscape-reflection.has-region h2
+) {
+  font-size: clamp(27px, 2.3vw, 32px);
+  line-height: 1.3;
+  letter-spacing: -.6px;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(
+  .mode-card h3, .scenario-card h3, .skill-card h3,
+  .wisdom-card h3, .journal-card h3, .journey-panel h3,
+  .gentle-aside h3, .pocket-prompt h2
+) {
+  font-size: 25px;
+  line-height: 1.35;
+  letter-spacing: -.4px;
+}
+
+:is(.app-shell, .world-experience .world-activity) .skills-banner h3 {
+  font-size: 22px;
+  line-height: 1.4;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.practice-card .practice-prompt, .wisdom-intro > p) {
+  font-size: 21px;
+  line-height: 1.6;
+}
+
+:is(.app-shell, .world-experience .world-activity) .wisdom-intro p span {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* More room for larger copy without fixing card or button heights. */
+:is(.app-shell, .world-experience .world-activity) :is(.scenario-grid, .skills-grid, .journal-grid) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr));
+  gap: 20px;
+}
+
+.app-shell .mode-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.mode-card, .scenario-card, .skill-card, .journal-card) {
+  padding: 26px;
+  min-width: 0;
+}
+
+.app-shell .mode-card p {
+  max-width: none;
+}
+
+.app-shell .mode-card-top {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+
+.app-shell .mode-badge {
+  position: static;
+  max-width: calc(100% - 65px);
+  padding: 5px 8px;
+  letter-spacing: .4px;
+  white-space: normal;
+}
+
+:is(.app-shell, .world-experience .world-activity) :is(.journal-toolbar, .journal-toolbar > div, .chat-panel-header > div, .composer-bottom, .focus-indicator) {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+:is(.app-shell, .world-experience .world-activity) .journal-toolbar select {
+  width: min(100%, 260px);
+  min-height: 48px;
+}
+
+:is(.app-shell, .world-experience .world-activity) .step-list button > span {
+  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+:is(.app-shell, .world-experience .world-activity) .chat-panel-header > div {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+:is(.app-shell, .world-experience .world-activity) .source-link {
+  overflow-wrap: anywhere;
+}
+
+.app-shell .mood-choices {
+  flex-wrap: wrap;
+  row-gap: 20px;
+  margin-left: 0;
+}
+
+.app-shell .mood-choice {
+  font-size: 14px;
+  line-height: 1.45;
+  min-width: 60px;
+}
+
+.app-shell .home-footer {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Keep section navigation readable at laptop widths as well as on phones. */
+.app-shell .sidebar {
+  width: 264px;
+}
+
+.app-shell .main-shell {
+  margin-left: 264px;
+}
+
+.app-shell .nav-item {
+  font-size: 16px;
+  line-height: 1.4;
+  gap: 12px;
+  padding: 13px 12px;
+}
+
+.app-shell .nav-item > svg {
+  flex-shrink: 0;
+}
+
+.app-shell :is(.sidebar-tagline, .pause-card > span:not(.pause-icon), .sidebar-footer .text-button, .sidebar-footer .support-link, .topbar-breadcrumb, .no-rush) {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-shell :is(.nav-label, .count-pill) {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.app-shell .pause-card strong {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.app-shell .topbar {
+  height: auto;
+  min-height: 84px;
+  padding-block: 15px;
+}
+
+.app-shell .topbar-breadcrumb {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
+.app-shell :is(.topbar-actions .icon-button, .avatar) {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+/* The passcode page uses the same comfortable baseline. */
+.gate .gate-card {
+  width: 440px;
+}
+
+.gate .gate-card > .eyebrow,
+.gate .hpy-gate-art > span {
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 1px;
+}
+
+.gate .gate-card > p,
+.gate .gate-card label,
+.gate .gate-card .password-wrap input,
+.gate .gate-card .password-wrap input::placeholder,
+.gate .gate-card .button {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.gate .password-wrap {
+  min-height: 56px;
+}
+
+.gate .password-wrap .text-button {
+  font-size: 14px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.gate .gate-card .button {
+  min-height: 52px;
+}
+
+.gate :is(.gate-foot, .gate-bottom, .error-text) {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gate .gate-foot {
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.gate .gate-foot > svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.gate .gate-bottom {
+  padding-inline: 24px;
+}
+
+/* Shared support, privacy, preferences and nested journal/voice dialogs. */
+.modal:not([class*="world-"]) {
+  width: 620px;
+  max-width: 100%;
+  padding: clamp(24px, 4vw, 36px);
+}
+
+.modal:not([class*="world-"]) .modal-header h2 {
+  font-size: 28px;
+  line-height: 1.3;
+}
+
+.modal:not([class*="world-"]) :is(p, .privacy-item p, .support-box p, .grounding-card > p, .journal-full-body) {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.modal:not([class*="world-"]) :is(.small, .support-box > p.small, .field-label span, .error-text, .save-control .error-text) {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.modal:not([class*="world-"]) :is(.button, .text-button, .chip, .field-label, .input, .textarea, .grounding-card > .text-button) {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.modal:not([class*="world-"]) :is(.button, .text-button, .chip) {
+  min-height: 44px;
+  white-space: normal;
+}
+
+.modal:not([class*="world-"]) .modal-header .icon-button {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.modal:not([class*="world-"]) :is(.privacy-item h3, .support-box h3) {
+  font-size: 21px;
+  line-height: 1.4;
+}
+
+.modal:not([class*="world-"]) > .eyebrow {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.modal.pause-modal > p {
+  max-width: none;
+}
+
+@media (max-width: 1100px) {
+  .app-shell .no-rush { display: none; }
+  :is(.app-shell, .world-experience .world-activity) :is(.chat-layout, .practice-layout, .landscape-full) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :is(.app-shell, .world-experience .world-activity) .gentle-aside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .app-shell .home-hero { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .hero-landscape { max-width: 560px; justify-self: center; width: 100%; }
+}
+
+@media (max-width: 740px) {
+  .app-shell .sidebar { width: min(320px, calc(100vw - 36px)); }
+  .app-shell .main-shell { margin-left: 0; }
+  .app-shell .topbar { min-height: 76px; padding-block: 12px; }
+  .app-shell .breadcrumb-current { display: none; }
+  .app-shell .mood-choices { justify-content: flex-start; gap: 18px; }
+  .app-shell .checkin-note { flex-direction: column; align-items: stretch; }
+  :is(.app-shell, .world-experience .world-activity) :is(.scenario-grid, .skills-grid, .journal-grid, .wisdom-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :is(.app-shell, .world-experience .world-activity) .practice-bottom { align-items: flex-start; }
+  .gate .gate-card { width: 440px; max-width: 100%; }
+  .gate .gate-bottom { position: static; margin-top: auto; padding-inline: 0; }
+  .gate .gate-card { margin-bottom: 40px; }
+}
+
+@media (max-width: 500px) {
+  .app-shell .topbar { padding-inline: 12px; gap: 6px; }
+  .app-shell .topbar-breadcrumb { gap: 7px; }
+  .app-shell .topbar-actions { gap: 2px; }
+  .app-shell .topbar-support { display: none; }
+  .app-shell .mode-grid { grid-template-columns: minmax(0, 1fr); }
+  :is(.app-shell, .world-experience .world-activity) :is(.mode-card, .scenario-card, .skill-card, .journal-card) { padding: 23px; }
+  :is(.app-shell, .world-experience .world-activity) :is(.journal-toolbar, .journal-toolbar > div) { align-items: flex-start; }
+  :is(.app-shell, .world-experience .world-activity) .chat-panel-header { align-items: flex-start; gap: 10px; }
+  :is(.app-shell, .world-experience .world-activity) .chat-panel-header .soft-label { display: none; }
+  .modal:not([class*="world-"]) { padding: 24px; }
+  .modal:not([class*="world-"]) .modal-header h2 { font-size: 26px; }
+}
