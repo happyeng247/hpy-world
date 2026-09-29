@@ -29,14 +29,25 @@ Restart the running server after changing a passcode. An `APP_PASSCODE` environm
 
 ## Access from your phone or another computer
 
-Host the Node server behind HTTPS with a persistent disk. A static-only host cannot run this authentication or encrypted storage. The included `render.yaml` is a deployment starting point for a single Node service with persistent storage. It does not publish the app automatically; hosting plans and availability are determined by the provider.
+Host the Node server behind HTTPS with a persistent disk. A static-only host cannot run this authentication or encrypted storage.
 
-Configure these environment variables in your host:
+[Deploy HPY to Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fhappyeng247%2Fhpy-world)
+
+This [official deployment shortcut](https://render.com/docs/deploy-to-render) opens the public repository's `render.yaml` in your Render account. Review the service and pricing, enter `APP_PASSCODE` privately when prompted, and deploy. Do not put the passcode in the repository. The link opens the setup flow; it is not a live instance of the app.
+
+The Blueprint configures one Node 22 web service on Render's `0.5c-512mb` paid compute plan, with a 1 GB persistent disk mounted at `/var/data`. **The service and persistent disk incur hosting charges.** Render requires a paid service for [persistent disks](https://render.com/docs/disks); check the current charges shown in your account before deploying. The build explicitly installs development dependencies because Vite is needed to build the frontend.
+
+For the standard `onrender.com` address, no manual origin setting is needed: the start command uses Render's [`RENDER_EXTERNAL_URL`](https://render.com/docs/environment-variables) unless you set `APP_ORIGIN` yourself. For a custom domain, set `APP_ORIGIN` to that exact HTTPS origin before using it. The server accepts only the configured hostname; the `/api/session` health check must use the same hostname. On first startup, the server creates its private configuration and an empty journal store on the persistent disk. Local journal data is not uploaded by this deployment.
+
+After Render reports a successful deploy, open the service's HTTPS URL and unlock it with the passcode you configured. Automatic deployments from future source pushes are disabled, following Render's deployment-button guidance. Use **Manual Deploy** in Render when you want to publish a later version. These instructions and the Blueprint do not indicate that a hosted deployment has already been created.
+
+For another host, or to customize the Render service, configure these environment variables:
+
 
 | Variable | Value |
 | --- | --- |
 | `APP_PASSCODE` | Your private passcode, stored as a hosting secret |
-| `APP_ORIGIN` | The exact public origin, e.g. `https://your-service.onrender.com`, without a path |
+| `APP_ORIGIN` | The exact public HTTPS origin, without a path; optional for the standard Render URL with the supplied start command |
 | `DATA_DIR` | A directory on the persistent disk, e.g. `/var/data/becoming` |
 | `NODE_ENV` | `production` |
 | `HOST` | `0.0.0.0` |
