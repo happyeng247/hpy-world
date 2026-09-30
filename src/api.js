@@ -12,5 +12,6 @@ export async function api(path, options = {}) {
     if (response.status === 401 && path !== '/unlock' && path !== '/session') window.dispatchEvent(new Event('becoming:session-ended'));
     throw error;
   }
+  if ((path.startsWith('/journal') && ['POST', 'DELETE'].includes(options.method)) || (path === '/voice/config' && ['PUT', 'DELETE'].includes(options.method))) window.dispatchEvent(new Event('hpy:journey-changed'));
   return data;
 }

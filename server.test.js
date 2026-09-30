@@ -19,7 +19,7 @@ async function fixture(t, options = {}) {
     await fs.rm(dataDir, { recursive: true, force: true });
   });
   const start = async (overrides = {}) => {
-    const app = await createApp({ dataDir, distDir, passcode: testPasscode, ...options, ...overrides });
+    const app = await createApp({ dataDir, distDir, passcode: testPasscode, openaiApiKey: '', ...options, ...overrides });
     await new Promise((resolve) => app.server.listen(0, '127.0.0.1', resolve));
     apps.push(app);
     const base = `http://127.0.0.1:${app.server.address().port}`;

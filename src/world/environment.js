@@ -11,6 +11,35 @@ export const WORLD_STATIONS = [
   { id: 'wisdom', label: 'Wisdom Grove', subtitle: 'Sit with a different perspective', x: -12, z: -23, color: '#b39a6b', icon: '☼' },
 ];
 
+const WORLD_APPEARANCES = {
+  arrival: {
+    id: 'arrival', label: 'Arrival Garden', seed: 170329, treeStyle: 'rounded',
+    sky: ['#cbbcdf', '#ecddd9', '#f6e8d6'], fog: '#eddfd8',
+    light: { sky: '#fff0df', ground: '#c0afa2', ambient: 2.6, sun: '#ffe7c9', strength: 3.1, fill: '#d9cdff', exposure: 1.15 },
+    grass: ['#a7bf86', '#8eac80', '#bbc98e', '#9aac9c'], sand: '#e4d6b2', water: '#a9cac4', pool: '#91bdc1', path: '#e8cdb0', stone: '#e9d9ba',
+    trees: ['#7f9d7b', '#a5b783', '#91a681', '#b5c58b', '#91aaa0'], trunk: '#ad9474', blossom: '#e3b6b4', accent: '#d9c7a9',
+    flowers: ['#e4b69d', '#c8b8d5', '#f3e4b4', '#eee5cf'], mountains: ['#c0c5c1', '#c7c7bf', '#bac5bd', '#cec7c6'], cloud: '#f2ecdd',
+  },
+  practice: {
+    id: 'practice', label: 'Twilight Woods', seed: 830421, treeStyle: 'pine',
+    sky: ['#686e9a', '#b6a4c8', '#e9c8d1'], fog: '#b7aec7',
+    light: { sky: '#e7e4ff', ground: '#8d94ae', ambient: 2.4, sun: '#e2e6ff', strength: 2.25, fill: '#d2bbfa', exposure: 1.18 },
+    grass: ['#959bb1', '#788c99', '#b0adc5', '#9e91b1'], sand: '#c8c3d1', water: '#8a9eb8', pool: '#a3bdd5', path: '#d9d0e7', stone: '#ddd6e9',
+    trees: ['#727e9f', '#8a88ac', '#687e98', '#aaa0c2', '#8295ac'], trunk: '#8a7e99', blossom: '#e3d4fd', accent: '#c4b5dd',
+    flowers: ['#c1aee8', '#e4cef8', '#d8dcfa', '#efe4ff'], mountains: ['#868cab', '#9994b3', '#aaa0bb', '#b8a8c6'], cloud: '#d8d2e7',
+  },
+  integration: {
+    id: 'integration', label: 'Golden Grove', seed: 621019, treeStyle: 'canopy',
+    sky: ['#dbbba6', '#efcba9', '#fae4c1'], fog: '#ead2b1',
+    light: { sky: '#fff0d3', ground: '#b7a280', ambient: 2.65, sun: '#ffdeaa', strength: 3.2, fill: '#f3c6b2', exposure: 1.12 },
+    grass: ['#c2b183', '#a3a378', '#dbcc99', '#c3a583'], sand: '#eddbb7', water: '#a7c0b6', pool: '#a4c5b0', path: '#f0d5ac', stone: '#f0debc',
+    trees: ['#ce995d', '#ddb86a', '#b88862', '#e3c87f', '#c8a36b'], trunk: '#a17a58', blossom: '#f5d6a0', accent: '#bd8c63',
+    flowers: ['#f0cc84', '#db9f78', '#f6e4b8', '#bb9962'], mountains: ['#c2b398', '#ccb795', '#b3b59b', '#d7baa2'], cloud: '#fae8c7',
+  },
+};
+
+export const getWorldAppearance = worldId => WORLD_APPEARANCES[worldId] || WORLD_APPEARANCES.arrival;
+
 const TAU = Math.PI * 2;
 const smooth = (a, b, value) => {
   const t = THREE.MathUtils.clamp((value - a) / (b - a), 0, 1);
@@ -58,12 +87,14 @@ const PATH_ROUTES = [
   [[12, 9], [17.9, 9.1], [22.2, 4.2], [23.8, -2.4], [22, -9]],
 ];
 
-export function createEnvironment(scene) {
+export function createEnvironment(scene, { worldId = 'arrival' } = {}) {
+  const biome = getWorldAppearance(worldId);
   const world = new THREE.Group();
-  world.name = 'HPY · a world to wander';
+  world.name = `HPY · ${biome.label}`;
+  world.userData.worldId = biome.id;
   scene.add(world);
   const colliders = [];
-  const random = seededRandom(170329);
+  const random = seededRandom(biome.seed);
   const animate = [];
   const blooms = new Map();
   const materials = new Set();
@@ -79,8 +110,8 @@ export function createEnvironment(scene) {
   };
   const standard = makeMaterial({ color: '#ffffff' });
   const glow = makeMaterial({ color: '#ffffff', emissive: '#e6b97c', emissiveIntensity: 0.35, roughness: 0.65 });
-  const poolMaterial = makeMaterial({ color: '#91bdc1', roughness: 0.23, metalness: 0.12, transparent: true, opacity: 0.91 });
-  const sandMaterial = makeMaterial({ color: '#e5d8b4', roughness: 1 });
+  const poolMaterial = makeMaterial({ color: biome.pool, roughness: 0.23, metalness: 0.12, transparent: true, opacity: 0.91 });
+  const sandMaterial = makeMaterial({ color: biome.sand, roughness: 1 });
   const geometry = (shape, value) => {
     if (value) {
       geometries.add(value);
@@ -94,6 +125,8 @@ export function createEnvironment(scene) {
     pebble: geometry(null, new THREE.IcosahedronGeometry(1, 0)),
     cylinder: geometry(null, new THREE.CylinderGeometry(1, 1, 1, 12)),
     cone: geometry(null, new THREE.ConeGeometry(1, 1, 9)),
+    crystal: geometry(null, new THREE.OctahedronGeometry(1, 0)),
+    canopy: geometry(null, new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2)),
     box: geometry(null, new THREE.BoxGeometry(1, 1, 1)),
     stem: geometry(null, new THREE.CylinderGeometry(0.035, 0.05, 1, 5)),
     ring: geometry(null, new THREE.TorusGeometry(1, 0.032, 5, 48)),
@@ -156,11 +189,11 @@ export function createEnvironment(scene) {
   const groundIndices = [];
   const sectors = 160;
   const rings = 54;
-  const grassGreen = new THREE.Color('#a7bf86');
-  const mossGreen = new THREE.Color('#8eac80');
-  const limeGreen = new THREE.Color('#bbc98e');
-  const sandy = new THREE.Color('#e4d6b2');
-  const muted = new THREE.Color('#9aac9c');
+  const grassGreen = new THREE.Color(biome.grass[0]);
+  const mossGreen = new THREE.Color(biome.grass[1]);
+  const limeGreen = new THREE.Color(biome.grass[2]);
+  const sandy = new THREE.Color(biome.sand);
+  const muted = new THREE.Color(biome.grass[3]);
   for (let ring = 0; ring <= rings; ring++) {
     for (let sector = 0; sector <= sectors; sector++) {
       const angle = sector / sectors * TAU;
@@ -194,7 +227,7 @@ export function createEnvironment(scene) {
   terrain.userData.walkable = true;
   terrain.userData.ground = true;
 
-  const water = mesh(new THREE.CircleGeometry(240, 96), makeMaterial({ color: '#a9cac4', roughness: 0.6, metalness: 0.06 }), [0, -0.57, 0]);
+  const water = mesh(new THREE.CircleGeometry(240, 96), makeMaterial({ color: biome.water, roughness: 0.6, metalness: 0.06 }), [0, -0.57, 0]);
   water.rotation.x = -Math.PI / 2;
   water.castShadow = false;
   const shoreWaveMaterial = makeMaterial({ color: '#f5efd9', transparent: true, opacity: 0.34, depthWrite: false });
@@ -232,19 +265,49 @@ export function createEnvironment(scene) {
       if (index % 8 !== 3 || WORLD_STATIONS.some(station => Math.hypot(point.x - station.x, point.z - station.z) < 3.6)) return;
       const next = path[Math.min(path.length - 1, index + 1)];
       const angle = Math.atan2(next.x - point.x, next.z - point.z);
-      place('cylinder', index % 3 ? '#eddbbd' : '#e6ceb0', point.x, terrainHeight(point.x, point.z) + 0.051, point.z, 0.54, 0.026, 0.29, [0, angle, 0]);
+      place(biome.id === 'practice' ? 'box' : 'cylinder', biome.id === 'arrival' ? (index % 3 ? '#eddbbd' : '#e6ceb0') : biome.stone, point.x, terrainHeight(point.x, point.z) + 0.051, point.z, 0.54, 0.026, 0.29, [0, angle, 0]);
     });
   }
   const pathGeo = new THREE.BufferGeometry();
   pathGeo.setAttribute('position', new THREE.Float32BufferAttribute(pathPositions, 3));
   pathGeo.setIndex(pathIndices);
   pathGeo.computeVertexNormals();
-  const pathMesh = mesh(pathGeo, makeMaterial({ color: '#e8cdb0', roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+  const pathMesh = mesh(pathGeo, makeMaterial({ color: biome.path, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
   pathMesh.castShadow = false;
   pathMesh.userData.walkable = true;
 
   function tree(x, z, size = 1, color = '#829a71', blossom = false) {
     const y = terrainHeight(x, z);
+    if (biome.treeStyle !== 'rounded') {
+      const foliage = biome.trees[Math.abs(Math.round(x * 3 + z * 5)) % biome.trees.length];
+      if (biome.treeStyle === 'pine') {
+        place('cylinder', biome.trunk, x, y + 1.8 * size, z, 0.15 * size, 3.6 * size, 0.15 * size);
+        for (let tier = 0; tier < 4; tier++) {
+          const width = (1.25 - tier * 0.24) * size;
+          const tint = new THREE.Color(foliage).lerp(new THREE.Color('#d5c8ec'), tier * 0.055);
+          place('cone', tint, x, y + (2.15 + tier * 0.68) * size, z, width, (2.15 - tier * 0.18) * size, width, [0, tier * 0.53, 0]);
+        }
+        if (blossom) place('crystal', biome.blossom, x, y + 4.94 * size, z, 0.12 * size, 0.25 * size, 0.12 * size, [0, 0, 0], { glow: true });
+      } else {
+        place('cylinder', biome.trunk, x, y + 1.52 * size, z, 0.2 * size, 3.05 * size, 0.2 * size, [0, 0, -0.025]);
+        for (let branch = 0; branch < 3; branch++) {
+          const a = branch / 3 * TAU + 0.4;
+          const dx = Math.cos(a) * 0.72 * size, dz = Math.sin(a) * 0.72 * size;
+          place('cylinder', biome.trunk, x + dx * 0.5, y + 2.65 * size, z + dz * 0.5, 0.085 * size, 1.45 * size, 0.085 * size, [Math.sin(a) * 0.7, 0, -Math.cos(a) * 0.7]);
+          const tint = new THREE.Color(foliage).lerp(new THREE.Color('#f6dfa0'), branch * 0.075);
+          place('canopy', tint, x + dx, y + (2.78 + branch * 0.2) * size, z + dz, 1.2 * size, 0.85 * size, 1.15 * size, [0.05, a, 0.06]);
+        }
+        place('canopy', foliage, x, y + 3.48 * size, z, 1.4 * size, 0.94 * size, 1.22 * size, [0, 0.2, 0]);
+        if (blossom) {
+          for (let leaf = 0; leaf < 5; leaf++) {
+            const a = leaf / 5 * TAU;
+            place('petal', biome.blossom, x + Math.cos(a) * 0.8 * size, y + 0.05, z + Math.sin(a) * 0.8 * size, 0.24 * size, 0.024, 0.12 * size, [0, a, 0]);
+          }
+        }
+      }
+      collider(x, z, 0.45 * size);
+      return;
+    }
     const trunkHeight = 2.9 * size;
     place('cylinder', '#ad9474', x, y + trunkHeight * 0.48, z, 0.19 * size, trunkHeight, 0.19 * size, [0, 0, -0.055]);
     place('cylinder', '#b59a7c', x + 0.28 * size, y + trunkHeight * 0.7, z + 0.06, 0.12 * size, 1.28 * size, 0.12 * size, [0.1, 0, -0.62]);
@@ -264,11 +327,16 @@ export function createEnvironment(scene) {
 
   function rock(x, z, size = 1, color = '#c4be9d') {
     const y = terrainHeight(x, z);
-    place('pebble', color, x, y + size * 0.29, z, size * 0.82, size * 0.65, size, [0.06, random() * TAU, 0.13]);
+    if (biome.id === 'practice') {
+      place('crystal', biome.trees[3], x, y + size * 0.72, z, size * 0.62, size * 1.15, size * 0.62, [0.08, random() * TAU, 0.13]);
+      place('crystal', '#d7caed', x + size * 0.28, y + size * 0.42, z + size * 0.11, size * 0.28, size * 0.68, size * 0.26, [0, 0, -0.2]);
+    } else {
+      place('pebble', biome.id === 'arrival' ? color : '#c4a77e', x, y + size * 0.29, z, size * 0.82, size * 0.65, size, [0.06, random() * TAU, 0.13]);
+    }
     if (size > 0.6) collider(x, z, size * 0.8);
   }
 
-  const treePalette = ['#7f9d7b', '#a5b783', '#91a681', '#b5c58b', '#91aaa0'];
+  const treePalette = biome.trees;
   let planted = 0;
   for (let attempt = 0; attempt < 1300 && planted < 112; attempt++) {
     const angle = random() * TAU;
@@ -300,18 +368,28 @@ export function createEnvironment(scene) {
     if (pathDistance(x, z) < 1.35 || clearingDistance(x, z) < -0.9) continue;
     const y = terrainHeight(x, z);
     const size = 0.65 + random() * 0.8;
+    if (biome.id === 'integration' && attempt % 3 === 0) {
+      const tint = biome.flowers[attempt % biome.flowers.length];
+      place('petal', tint, x, y + 0.033, z, 0.18 * size, 0.025, 0.36 * size, [0, random() * TAU, 0]);
+      place('stem', biome.trunk, x, y + 0.037, z, 0.16, 0.5 * size, 0.16, [Math.PI / 2, random() * TAU, 0]);
+      continue;
+    }
+    if (biome.id === 'practice' && attempt % 7 === 0) {
+      place('crystal', biome.flowers[attempt % biome.flowers.length], x, y + 0.21 * size, z, 0.1 * size, 0.29 * size, 0.1 * size, [0.1, random() * TAU, 0.12], { glow: true });
+      continue;
+    }
     if (attempt % 4 === 0) {
-      place('leaf', attempt % 3 ? '#96ab72' : '#afbb78', x, y + 0.14, z, 0.38 * size, 0.25 * size, 0.33 * size);
+      place('leaf', biome.id === 'arrival' ? (attempt % 3 ? '#96ab72' : '#afbb78') : biome.grass[1], x, y + 0.14, z, 0.38 * size, 0.25 * size, 0.33 * size);
       continue;
     }
     if (attempt % 5 !== 0) {
-      place('cone', attempt % 2 ? '#88a76c' : '#b8c889', x, y + 0.2 * size, z, 0.11 * size, 0.44 * size, 0.055 * size, [0.08, random() * TAU, 0.1]);
-      place('cone', '#a4bb7b', x + 0.1, y + 0.15 * size, z + 0.03, 0.08 * size, 0.32 * size, 0.04 * size, [0, random() * TAU, -0.22]);
+      place('cone', biome.id === 'arrival' ? (attempt % 2 ? '#88a76c' : '#b8c889') : biome.grass[1], x, y + 0.2 * size, z, 0.11 * size, 0.44 * size, 0.055 * size, [0.08, random() * TAU, 0.1]);
+      place('cone', biome.id === 'arrival' ? '#a4bb7b' : biome.grass[2], x + 0.1, y + 0.15 * size, z + 0.03, 0.08 * size, 0.32 * size, 0.04 * size, [0, random() * TAU, -0.22]);
       continue;
     }
     const height = 0.25 + random() * 0.22;
     place('stem', '#78956c', x, y + height / 2, z, 1, height, 1);
-    const color = ['#e4b69d', '#c8b8d5', '#f3e4b4', '#eee5cf'][attempt % 4];
+    const color = biome.flowers[attempt % 4];
     for (let petal = 0; petal < 4; petal++) {
       const a = petal / 4 * TAU;
       place('petal', color, x + Math.cos(a) * 0.105, y + height, z + Math.sin(a) * 0.105, 0.13, 0.055, 0.1, [0, -a, 0]);
@@ -357,26 +435,56 @@ export function createEnvironment(scene) {
     const inner = outer - 0.4;
     const spring = height - outer;
     const shape = new THREE.Shape();
-    shape.moveTo(-outer, 0);
-    shape.lineTo(-outer, spring);
-    shape.absarc(0, spring, outer, Math.PI, 0, true);
-    shape.lineTo(outer, 0);
-    shape.lineTo(inner, 0);
-    shape.lineTo(inner, spring);
-    shape.absarc(0, spring, inner, 0, Math.PI, false);
-    shape.lineTo(-inner, 0);
+    if (biome.id === 'practice') {
+      shape.moveTo(-outer, 0);
+      shape.lineTo(-outer, height * 0.68);
+      shape.lineTo(0, height + 0.3);
+      shape.lineTo(outer, height * 0.68);
+      shape.lineTo(outer, 0);
+      shape.lineTo(inner, 0);
+      shape.lineTo(inner, height * 0.68 - 0.2);
+      shape.lineTo(0, height - 0.27);
+      shape.lineTo(-inner, height * 0.68 - 0.2);
+      shape.lineTo(-inner, 0);
+    } else if (biome.id === 'integration') {
+      shape.moveTo(-outer, 0);
+      shape.lineTo(-outer, height);
+      shape.lineTo(outer, height);
+      shape.lineTo(outer, 0);
+      shape.lineTo(inner, 0);
+      shape.lineTo(inner, height - 0.42);
+      shape.lineTo(-inner, height - 0.42);
+      shape.lineTo(-inner, 0);
+    } else {
+      shape.moveTo(-outer, 0);
+      shape.lineTo(-outer, spring);
+      shape.absarc(0, spring, outer, Math.PI, 0, true);
+      shape.lineTo(outer, 0);
+      shape.lineTo(inner, 0);
+      shape.lineTo(inner, spring);
+      shape.absarc(0, spring, inner, 0, Math.PI, false);
+      shape.lineTo(-inner, 0);
+    }
     shape.closePath();
-    const object = mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.47, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.07, bevelSegments: 2, steps: 1, curveSegments: 24 }), makeMaterial({ color }), [x, y, z]);
+    const tint = biome.id === 'arrival' ? color : biome.accent;
+    const object = mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.47, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.07, bevelSegments: 2, steps: 1, curveSegments: 24 }), makeMaterial({ color: tint }), [x, y, z]);
     object.rotation.y = rotation;
     object.userData.station = station;
     collider(x - outer * Math.cos(rotation), z + outer * Math.sin(rotation), 0.42);
     collider(x + outer * Math.cos(rotation), z - outer * Math.sin(rotation), 0.42);
+    if (biome.id === 'integration') {
+      // A timber lintel and open rafters make these gateways into pergolas.
+      for (let beam = -2; beam <= 2; beam++) {
+        const dx = beam * width / 5;
+        place('box', biome.trunk, x + dx * Math.cos(rotation), y + height + 0.1, z - dx * Math.sin(rotation), 0.15, 0.18, 1.05, [0, rotation, 0], { station });
+      }
+    }
     return object;
   }
 
   function pool(x, z, rx, rz, station, color = '#91bdc1') {
     const y = terrainHeight(x, z) + 0.062;
-    const material = color === '#91bdc1' ? poolMaterial : makeMaterial({ color, roughness: 0.28, metalness: 0.12 });
+    const material = color === '#91bdc1' || biome.id !== 'arrival' ? poolMaterial : makeMaterial({ color, roughness: 0.28, metalness: 0.12 });
     const poolMesh = mesh(new THREE.CylinderGeometry(1, 1, 0.04, 64), material, [x, y, z], [rx, 1, rz]);
     poolMesh.userData.station = station;
     poolMesh.castShadow = false;
@@ -396,7 +504,7 @@ export function createEnvironment(scene) {
     const { x, z, id, color } = station;
     const y = terrainHeight(x, z);
     const options = { station: id };
-    const paving = mesh(new THREE.CylinderGeometry(3.5, 3.5, 0.035, 48), makeMaterial({ color: '#e9d9ba' }), [x, y + 0.023, z]);
+    const paving = mesh(new THREE.CylinderGeometry(3.5, 3.5, 0.035, biome.id === 'practice' ? 8 : 48), makeMaterial({ color: biome.stone }), [x, y + 0.023, z]);
     paving.castShadow = false;
     paving.userData.station = id;
     paving.userData.walkable = true;
@@ -443,7 +551,7 @@ export function createEnvironment(scene) {
     if (id === 'landscape') {
       pool(x, z - 3.7, 3.1, 2.15, id);
       // A moon gate behind water offers a literal frame for reflection.
-      const gate = mesh(new THREE.TorusGeometry(2.35, 0.24, 10, 72), makeMaterial({ color: '#e9e0c9' }), [x, y + 2.6, z - 4.2]);
+      const gate = mesh(new THREE.TorusGeometry(2.35, 0.24, biome.id === 'practice' ? 4 : 10, biome.id === 'practice' ? 8 : 72), makeMaterial({ color: biome.id === 'arrival' ? '#e9e0c9' : biome.accent }), [x, y + 2.6, z - 4.2]);
       gate.userData.station = id;
       place('cylinder', '#d9d5bc', x - 2.13, y + 0.32, z - 4.2, 0.44, 0.64, 0.44, [0, 0, 0], options);
       place('cylinder', '#d9d5bc', x + 2.13, y + 0.32, z - 4.2, 0.44, 0.64, 0.44, [0, 0, 0], options);
@@ -536,13 +644,15 @@ export function createEnvironment(scene) {
       const tx = x;
       const tz = z - 4.2;
       const ty = terrainHeight(tx, tz);
-      place('cylinder', '#a79070', tx, ty + 2.3, tz, 0.49, 4.6, 0.44, [0, 0, 0.06], options);
+      place('cylinder', biome.id === 'arrival' ? '#a79070' : biome.trunk, tx, ty + 2.3, tz, 0.49, 4.6, 0.44, [0, 0, 0.06], options);
       for (let index = 0; index < 5; index++) {
         const a = index / 5 * TAU;
         place('cylinder', '#b19b78', tx + Math.sin(a) * 0.95, ty + 3.4, tz + Math.cos(a) * 0.8, 0.17, 2.9, 0.17, [Math.cos(a) * 0.75, 0, -Math.sin(a) * 0.75], options);
-        place('leaf', index % 2 ? '#bec894' : '#acbd8c', tx + Math.sin(a) * 2, ty + 4.5 + Math.sin(index * 1.7) * 0.33, tz + Math.cos(a) * 1.8, 2.26, 1.13, 2.13, [0, a, 0], options);
+        const canopyShape = biome.treeStyle === 'pine' ? 'cone' : biome.treeStyle === 'canopy' ? 'canopy' : 'leaf';
+        const canopyColor = biome.id === 'arrival' ? (index % 2 ? '#bec894' : '#acbd8c') : biome.trees[index % biome.trees.length];
+        place(canopyShape, canopyColor, tx + Math.sin(a) * 2, ty + 4.5 + Math.sin(index * 1.7) * 0.33, tz + Math.cos(a) * 1.8, 2.26, biome.id === 'practice' ? 3.1 : 1.13, 2.13, [0, a, 0], options);
       }
-      place('leaf', '#c8ce9e', tx, ty + 5.55, tz, 2.2, 1.08, 2.05, [0, 0.3, 0], options);
+      place(biome.treeStyle === 'pine' ? 'cone' : biome.treeStyle === 'canopy' ? 'canopy' : 'leaf', biome.id === 'arrival' ? '#c8ce9e' : biome.trees[3], tx, ty + 5.55, tz, 2.2, biome.id === 'practice' ? 3.3 : 1.08, 2.05, [0, 0.3, 0], options);
       collider(tx, tz, 0.76);
       for (let index = 0; index < 9; index++) {
         const a = index / 9 * TAU;
@@ -561,7 +671,7 @@ export function createEnvironment(scene) {
   });
 
   // Arrival garden: an open gateway ahead, with room to learn to wander.
-  arch(0, 17.3, 4.7, 4.7, '#d9c7a9', undefined);
+  arch(0, 17.3, 4.7, 4.7, biome.accent, undefined);
   lantern(-3.4, 16.5, 1.05);
   lantern(3.4, 16.5, 1.05);
   for (const side of [-1, 1]) {
@@ -570,7 +680,7 @@ export function createEnvironment(scene) {
   }
 
   // Distant coastlines, hazy mountains, and soft banks of cloud extend the world.
-  const distantColors = ['#c0c5c1', '#c7c7bf', '#bac5bd', '#cec7c6'];
+  const distantColors = biome.mountains;
   for (let index = 0; index < 19; index++) {
     const a = index / 19 * TAU + 0.13;
     const distance = 98 + random() * 39;
@@ -578,7 +688,7 @@ export function createEnvironment(scene) {
     const z = Math.cos(a) * distance;
     const height = 10 + random() * 17;
     place('cone', distantColors[index % 4], x, height * 0.33 - 3.5, z, 15 + random() * 9, height, 9 + random() * 13, [0, a, 0]);
-    place('leaf', '#b9c4b4', x, -0.62, z + 3, 18 + random() * 5, 2.3, 13 + random() * 6, [0, a, 0]);
+    place('leaf', biome.id === 'arrival' ? '#b9c4b4' : biome.grass[1], x, -0.62, z + 3, 18 + random() * 5, 2.3, 13 + random() * 6, [0, a, 0]);
   }
   for (let index = 0; index < 9; index++) {
     const angle = index / 9 * TAU;
@@ -586,7 +696,24 @@ export function createEnvironment(scene) {
     const z = Math.sin(angle) * (70 + random() * 50);
     const y = 26 + random() * 12;
     for (let puff = 0; puff < 4; puff++) {
-      place('ball', '#f2ecdd', x + puff * 3.5, y + Math.sin(puff) * 1.2, z, 5, 1.65 + random(), 2.9, [0, angle, 0]);
+      place('ball', biome.cloud, x + puff * 3.5, y + Math.sin(puff) * 1.2, z, 5, 1.65 + random(), 2.9, [0, angle, 0]);
+    }
+  }
+
+  if (biome.id === 'practice') {
+    const moon = mesh(new THREE.SphereGeometry(3.8, 24, 16), new THREE.MeshBasicMaterial({ color: '#f6eafa' }), [-27, 35, -70]);
+    moon.name = 'Twilight moon'; moon.castShadow = false; moon.receiveShadow = false;
+    for (let star = 0; star < 18; star++) {
+      const angle = star / 18 * TAU;
+      place('crystal', '#f2e6ff', Math.cos(angle) * 77, 28 + (star % 5) * 3.5, Math.sin(angle) * 77, 0.13, 0.35, 0.13, [0, angle, 0], { glow: true });
+    }
+  } else if (biome.id === 'integration') {
+    // Hanging leaves and timber make the starting clearing recognizably different.
+    for (let leaf = -3; leaf <= 3; leaf++) {
+      const x = leaf * 0.58;
+      const y = terrainHeight(0, 17.3) + 4.25 + Math.abs(leaf) * 0.13;
+      place('stem', biome.trunk, x, y + 0.2, 17.35, 0.2, 0.45, 0.2);
+      place('petal', biome.flowers[(leaf + 3) % 4], x, y - 0.1, 17.35, 0.21, 0.34, 0.055, [0, 0, leaf * 0.12]);
     }
   }
 
@@ -654,6 +781,7 @@ export function createEnvironment(scene) {
   update(0);
 
   return {
+    worldId: biome.id,
     colliders,
     update,
     markCompleted(id, { immediate = false } = {}) {

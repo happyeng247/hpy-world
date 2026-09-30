@@ -5,6 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, verifyPasscode, rootDir, defaultDataDir } from './config.mjs';
 import { EncryptedStore } from './store.mjs';
+import { JourneyService } from './journey.mjs';
+import { createProviderConfig } from './provider-config.mjs';
+import { createOpenAIService } from './openai.mjs';
 
 const COOKIE = 'becoming_session';
 // Bound the serialized request separately from character limits so non-Latin writing fits.
@@ -126,6 +129,18 @@ function setSecurityHeaders(res) {
 
 function sessionHash(token) { return createHash('sha256').update(token).digest('base64'); }
 
+async function resolveExistingPath(filename) {
+  try { return await fs.realpath(filename); }
+  catch (error) {
+    if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
+    const parent = path.dirname(filename);
+    if (parent === filename) return filename;
+    return path.join(await resolveExistingPath(parent), path.basename(filename));
+  }
+}
+
+const loopbackAddress = (address = '') => address === '::1' || /^127\./.test(address.replace(/^::ffff:/, ''));
+
 export async function createApp(options = {}) {
   const host = options.host ?? process.env.HOST ?? (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
   const rawOrigin = options.origin ?? process.env.APP_ORIGIN;
@@ -140,10 +155,28 @@ export async function createApp(options = {}) {
   if (process.env.NODE_ENV === 'production' && !trustedOrigin?.startsWith('https:')) throw new Error('Set APP_ORIGIN to the public HTTPS origin for production.');
   const distDir = path.resolve(options.distDir ?? path.join(rootDir, 'dist'));
   const dataDir = path.resolve(options.dataDir ?? process.env.DATA_DIR ?? defaultDataDir);
-  if (dataDir === distDir || dataDir.startsWith(distDir + path.sep)) throw new Error('DATA_DIR must be outside the frontend dist directory.');
+  const providerDir = path.resolve(options.openaiConfigDir ?? process.env.OPENAI_CONFIG_DIR ?? path.join(dataDir, 'openai'));
+  const publicPath = await resolveExistingPath(distDir);
+  for (const [label, directory] of [['DATA_DIR', dataDir], ['OPENAI_CONFIG_DIR', providerDir]]) {
+    const privatePath = await resolveExistingPath(directory);
+    if (privatePath === publicPath || privatePath.startsWith(publicPath + path.sep)) throw new Error(`${label} must be outside the frontend dist directory.`);
+  }
   const config = await loadConfig({ dataDir, passcode: options.passcode ?? process.env.APP_PASSCODE });
   const store = new EncryptedStore(config);
   await store.initialize();
+  const provider = await createProviderConfig({ dataDir: providerDir, apiKey: options.openaiApiKey ?? process.env.OPENAI_API_KEY ?? '' });
+  const openai = options.openaiService ?? createOpenAIService({ apiKey: () => provider.getKey() });
+  // Provider hooks are injected explicitly; journey storage never discovers credentials.
+  const journey = new JourneyService({
+    store, reviewJourney: options.reviewJourney ?? (input => openai.reviewJourney(input)),
+    aiReviewAvailable: options.aiReviewAvailable ?? (() => provider.status().configured),
+    reviewIntervalMs: options.journeyReviewIntervalMs,
+  });
+  const journeyMutationLimit = new RateLimit(options.journeyMutationLimit ?? 120, 60 * 1000);
+  const journeyReviewLimit = new RateLimit(options.journeyReviewLimit ?? 6, 60 * 1000);
+  const voiceSessionLimit = new RateLimit(options.voiceSessionLimit ?? 6, 60 * 1000);
+  const voiceConfigLimit = new RateLimit(10, 60 * 1000);
+  let activeVoiceSessions = 0;
   const sessions = new Map();
   const ttl = options.sessionTtlMs ?? DEFAULT_SESSION_TTL;
   const ipLimit = new RateLimit(options.unlockLimit ?? 8, options.unlockWindowMs ?? 15 * 60 * 1000);
@@ -262,18 +295,74 @@ export async function createApp(options = {}) {
         return json(res, 200, { authenticated: false });
       }
       if (!isAuthenticated(req)) throw new HttpError(401, 'Your space is locked. Enter your passcode to continue.');
+      const canConfigureVoice = !trustedOrigin && LOOPBACK_HOSTS.has(new URL(origin).hostname) && loopbackAddress(req.socket.remoteAddress);
+      const voiceStatus = () => ({ ...openai.status(), ...provider.status(), canConfigure: canConfigureVoice });
+      if (url.pathname === '/api/voice/status' && req.method === 'GET') return json(res, 200, voiceStatus());
+      if (url.pathname === '/api/voice/config' && ['PUT', 'DELETE'].includes(req.method)) {
+        if (!canConfigureVoice) throw new HttpError(403, 'Connect or disconnect the AI provider from this app’s local address on this Mac.');
+        const retry = voiceConfigLimit.take(req.socket.remoteAddress || 'unknown');
+        if (retry) { res.setHeader('Retry-After', String(retry)); throw new HttpError(429, 'Take a short pause before changing the AI connection again.'); }
+        if (req.method === 'PUT') await provider.setKey((await readBody(req)).apiKey);
+        else await provider.clearKey();
+        await journey.providerChanged();
+        return json(res, 200, voiceStatus());
+      }
+      if (url.pathname === '/api/voice/session' && req.method === 'POST') {
+        const retry = voiceSessionLimit.take(req.socket.remoteAddress || 'unknown');
+        if (retry || activeVoiceSessions) {
+          res.setHeader('Retry-After', String(retry || 10));
+          throw new HttpError(429, 'A voice connection is already starting, or you have made several attempts. Try again shortly.');
+        }
+        const body = await readBody(req);
+        const context = await journey.voiceContext(body.worldId, body.regionId);
+        if (!provider.status().configured) throw new HttpError(503, 'Connect an OpenAI API key before starting AI voice.');
+        if (typeof body.sdp !== 'string' || body.sdp.length > 100000 || !/^v=0(?:\r?\n)/.test(body.sdp)) throw new HttpError(400, 'The browser’s voice connection offer could not be read.');
+        if (activeVoiceSessions) { res.setHeader('Retry-After', '10'); throw new HttpError(429, 'Another voice connection is starting. Try again in a moment.'); }
+        activeVoiceSessions += 1;
+        try {
+          const voiceResult = await openai.createVoiceCall({ sdp: body.sdp, context });
+          if (!isAuthenticated(req)) throw new HttpError(401, 'Your space locked while voice was connecting. Unlock to try again.');
+          return json(res, 200, { ...voiceResult, sessionExpiresAt: sessions.get(sessionHash(tokenFrom(req))) });
+        }
+        finally { activeVoiceSessions -= 1; }
+      }
+      if (url.pathname === '/api/journey' && req.method === 'GET') return json(res, 200, await journey.read());
+      if (url.pathname === '/api/journey/export' && req.method === 'GET') {
+        res.setHeader('Content-Disposition', `attachment; filename="hpy-journey-${new Date().toISOString().slice(0, 10)}.json"`);
+        return json(res, 200, { format: 'hpy-journey-v1', exportedAt: new Date().toISOString(), ...(await journey.read()) });
+      }
+      if (url.pathname.startsWith('/api/journey/') && ['POST', 'DELETE'].includes(req.method)) {
+        const limit = url.pathname === '/api/journey/review' ? journeyReviewLimit : journeyMutationLimit;
+        const retry = limit.take(req.socket.remoteAddress || 'unknown');
+        if (retry) { res.setHeader('Retry-After', String(retry)); throw new HttpError(429, 'Take a short pause before updating your journey again.'); }
+        if (req.method === 'DELETE' && url.pathname.startsWith('/api/journey/insights/')) {
+          return json(res, 200, await journey.removeInsight(url.pathname.slice('/api/journey/insights/'.length)));
+        }
+        if (req.method === 'POST') {
+          if (url.pathname === '/api/journey/review') return json(res, 202, await journey.requestReview());
+          const body = await readBody(req);
+          if (url.pathname === '/api/journey/visit') return json(res, 200, await journey.visit(body));
+          if (url.pathname === '/api/journey/world') return json(res, 200, await journey.selectWorld(body));
+          if (url.pathname === '/api/journey/complete') return json(res, 200, await journey.complete(body));
+          if (url.pathname === '/api/journey/insights') return json(res, 201, await journey.addInsight(body));
+          if (url.pathname === '/api/journey/settings') return json(res, 200, await journey.settings(body));
+        }
+      }
       if (url.pathname === '/api/journal' && req.method === 'GET') return json(res, 200, { entries: (await store.read()).entries });
       if (url.pathname === '/api/journal' && req.method === 'POST') {
         const entry = validateEntry(await readBody(req));
-        await store.update((state) => {
+        const savedJourney = await store.update((state) => {
           if (state.entries.length >= 2000) throw new HttpError(409, 'Your journal has reached 2,000 entries. Export it before making more room.');
           state.entries.unshift(entry);
+          return journey.addJournalInsight(state, entry);
         });
-        return json(res, 201, { entry });
+        journey.afterCommit(savedJourney);
+        return json(res, 201, { entry, journey: savedJourney });
       }
       if (url.pathname === '/api/journal' && req.method === 'DELETE') {
-        await store.update((state) => { state.entries = []; });
-        return json(res, 200, { entries: [] });
+        const savedJourney = await store.update((state) => { state.entries = []; return journey.removeJournalInsights(state); });
+        journey.afterCommit(savedJourney);
+        return json(res, 200, { entries: [], ...(savedJourney ? { journey: savedJourney } : {}) });
       }
       if (url.pathname.startsWith('/api/journal/') && req.method === 'DELETE') {
         const id = url.pathname.slice('/api/journal/'.length);
@@ -282,10 +371,11 @@ export async function createApp(options = {}) {
           const index = state.entries.findIndex((entry) => entry.id === id);
           if (index === -1) return false;
           state.entries.splice(index, 1);
-          return true;
+          return { journey: journey.removeJournalInsights(state, [id]) };
         });
         if (!deleted) throw new HttpError(404, 'Entry not found.');
-        return json(res, 200, { deleted: true });
+        journey.afterCommit(deleted.journey);
+        return json(res, 200, { deleted: true, ...(deleted.journey ? { journey: deleted.journey } : {}) });
       }
       if (url.pathname === '/api/preferences' && req.method === 'GET') return json(res, 200, { preferences: (await store.read()).preferences });
       if (url.pathname === '/api/preferences' && req.method === 'POST') {
@@ -304,7 +394,10 @@ export async function createApp(options = {}) {
   server.headersTimeout = 10000;
   server.keepAliveTimeout = 5000;
   server.maxHeadersCount = 50;
-  return { server, host, close: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())) };
+  return { server, host, close: async () => {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await journey.close();
+  } };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -313,7 +406,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const port = Number(process.env.PORT || 4173);
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be a valid TCP port.');
     app.server.listen(port, app.host, () => console.log(`HPY is ready at ${process.env.APP_ORIGIN || `http://${app.host}:${port}`}`));
-    const shutdown = () => { app.server.close(() => process.exit(0)); setTimeout(() => process.exit(1), 10000).unref(); };
+    const shutdown = () => { void app.close().then(() => process.exit(0)); setTimeout(() => process.exit(1), 10000).unref(); };
     process.once('SIGINT', shutdown);
     process.once('SIGTERM', shutdown);
   } catch (error) {

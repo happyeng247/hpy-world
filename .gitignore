@@ -7,3 +7,7 @@ data/
 *.log
 .DS_Store
 coverage/
+
+# Server-only OpenAI credential vaults (even if a custom path is used).
+**/vault.key
+**/openai.enc

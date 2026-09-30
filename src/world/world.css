@@ -407,3 +407,16 @@
   .has-touch-controls .world-map-choice .world-kicker{display:none}
   .has-touch-controls .world-map-choice h3{margin:0;font-size:17px}
 }
+
+/* Journey navigation and module takeaways keep touch targets and text generous. */
+.world-brand>span:last-child{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.world-discoveries>div>span{display:block;max-width:300px;line-height:1.5;letter-spacing:.7px}
+.encounter-takeaway{display:block;font-size:17px;font-weight:600;line-height:1.5;margin:20px 0 9px}
+.encounter-takeaway>span{font-size:15px;font-weight:400}
+.world-encounter textarea{font-size:17px;width:100%;line-height:1.6}
+.world-encounter-voice{margin-top:18px;min-height:44px;gap:10px;font-size:16px}
+.save-journey-note{font-size:14px;line-height:1.5;max-width:340px;color:#706373;margin:8px 0}
+@media(max-width:900px){.world-top-actions .world-tool{width:44px;padding:0}.world-top-actions .world-tool>span{display:none}.world-top-actions{gap:7px}}
+@media(max-width:600px){.world-brand>span:last-child{display:none}.world-discoveries{right:16px;width:fit-content;max-width:calc(100% - 32px)}.world-discoveries>div>span{font-size:12px;max-width:190px}.world-discovery-dots{gap:4px}.world-discoveries{gap:8px}.world-discoveries>div.world-discovery-dots{flex-shrink:0}.world-encounter textarea{font-size:17px}}
+@media(max-width:600px){.world-top-actions button[aria-label="Journal"]{display:none}}
+@media(max-width:380px){.world-brand .hpy-wordmark{display:none}.world-brand{padding:8px}.world-discovery-icon{display:none}}

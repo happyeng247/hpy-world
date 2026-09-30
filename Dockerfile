@@ -12,6 +12,9 @@ WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4173 DATA_DIR=/var/data/becoming
 COPY --from=build /app/dist ./dist
 COPY server ./server
+COPY package.json ./package.json
+COPY src/journey/catalog.js ./src/journey/catalog.js
+COPY src/world/encounters.js ./src/world/encounters.js
 RUN mkdir -p /var/data/becoming && chown -R node:node /var/data/becoming /app
 USER node
 EXPOSE 4173

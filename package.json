@@ -7,7 +7,7 @@
     "build": "vite build",
     "start": "node server/index.mjs",
     "setup": "node server/setup.mjs",
-    "test": "node --test server.test.js src/reflection.test.js src/world/movement.test.js src/world/gestures.test.js"
+    "test": "node --test server.test.js server/*.test.mjs src/reflection.test.js src/world/movement.test.js src/world/gestures.test.js src/voice/*.test.js"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

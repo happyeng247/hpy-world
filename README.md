@@ -1,6 +1,6 @@
 # hpy — your space for becoming
 
-Your personal HPY space: a little 3D world to wander, with room for uncertainty, conflict, boundaries, and reconnecting. Walk your traveler along garden paths, discover a place to pause, and explore questions without a score or a prescribed answer.
+Your personal HPY space: three 3D worlds to wander, with room for uncertainty, conflict, boundaries, and reconnecting. Walk your traveler along garden paths, discover a place to pause, and explore questions without a score or a prescribed answer.
 
 ## Open your space
 
@@ -49,9 +49,17 @@ Six places invite different kinds of practice:
 - **Stillwater Garden:** make room to pause, observe, and choose a next move, inspired by STOP.
 - **Wisdom Grove:** reflect on your part in an uncertain outcome, inspired by Hindu philosophy.
 
-Each place has a short invitation. Write a few words, or choose **Let it be a question**. **Carry this with me** grows a small flower at that destination for this session. **Keep these words** explicitly saves your written reflection to the journal; carrying a moment alone does not save it.
+Each region has a short module. Write a few words, or leave an individual question open. At the end, add your own takeaway and choose **Save insight & complete**. This saves your responses and takeaway in the encrypted backend and grows a flower at that destination. Completing all six modules unlocks the next world. Progress survives server restarts and page reloads.
 
-The world menu lets you change your jacket color, turn on **Gentler motion**, reset the camera, or take a pause. Movement stops while a practice or menu is open. The map also offers **Open practice** if you want to go directly to an activity.
+**My journey** opens your world selector and ongoing reflection history:
+
+1. **Arrival Garden** — a meadow for noticing what is here.
+2. **Twilight Woods** — pines and crystals, with modules on patterns, boundaries, and response flexibility.
+3. **Golden Grove** — an autumn landscape for repair, uncertainty, and bringing a practice into everyday life.
+
+The chapters represent practices you have completed, not a grade for your mental health or personal worth. Revisit any unlocked world; each has six distinct modules. The map’s **Open module** offers an accessible alternative to walking.
+
+The world menu lets you change your jacket color, turn on **Gentler motion**, reset the camera, or take a pause. Movement stops while a practice or menu is open. The map also offers **Open module** if you want to go directly to an encounter.
 
 ## Keep exploring the sections
 
@@ -65,15 +73,27 @@ Your existing sections remain available through **world menu → Browse all sect
 - **The wisdom grove:** sit with questions inspired by Hindu philosophy, with links to the source texts.
 - **My little journal:** keep selected reflections, add your own notes, export a Markdown copy, or delete saved entries.
 
-Text reflection uses scripted prompts selected from themes in your writing. It can miss nuance, so take what helps and leave what doesn’t. It does not send your writing to an AI service. Optional voice typing uses your browser’s speech service, which may process audio online; the app explains this before you enable it. Browser support varies, and typing is always available.
+Text reflection uses scripted prompts selected from themes in your writing. It can miss nuance, so take what helps and leave what doesn’t. Drafting does not call an AI service. Saving a reflection adds it to your private journey; AI review of saved insights is a separate, optional setting. Optional voice typing uses your browser’s speech service, which may process audio online; the app explains this before you enable it. Browser support varies, and typing is always available.
 
 HPY is a reflection and skills practice space. Qualified people can offer context and support an app cannot; the in-app support panel includes ways to reach help.
 
+## Voice and your ongoing journey
+
+Choose **Voice** in the world, or **Explore this out loud** in a module, to open the OpenAI voice companion. Microphone access starts only after you agree and press **Start voice conversation**. You can interrupt, mute, stop, and review the on-screen transcript. Conversations stop after ten minutes, on page hiding/closing, or when the app session expires. HPY does not store raw audio or automatically save a transcript. Edit and explicitly save a takeaway to include it in your journey.
+
+An OpenAI project API key with billing and model access is required. An account password is never needed. On the host computer, open the local app and choose **My journey → OpenAI connection** to enter a project key in the private setup field. The server encrypts it in a separate credential vault; it is never returned to the browser, bundled into JavaScript, exported with reflections, or committed. Hosted deployments can instead set `OPENAI_API_KEY`. `OPENAI_REALTIME_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`, and `OPENAI_REVIEW_MODEL` override the documented defaults. API use can incur charges.
+
+Basic journey observations update after every saved insight without an AI call. They describe word mentions and participation, which can miss context. Enable **AI journey review** to send a bounded selection of saved insights to OpenAI after new saves. Reviews ask tentative questions, cite saved evidence, and show their scope: at most the latest 24 insights, up to 1,500 characters each. They do not grade personal growth or diagnose. The request uses `store: false`; OpenAI’s [API data policies](https://developers.openai.com/api/docs/guides/your-data) still apply. Turn reviews off whenever you want. A key alone does not enable reviews.
+
+Voice uses the [Realtime WebRTC interface](https://developers.openai.com/api/docs/guides/voice-webrtc) through this app’s server. The browser receives a connection answer, never your project key. Voice and review requests are bounded and failures leave saved reflections intact. Live model access and audio behavior require verification with your own enabled API project; the automated suite uses mocked provider responses and simulated microphones.
+
 ## Your words, your choice
 
-Discoveries, flowers, your traveler’s color, the Gentler motion choice, and encounter drafts stay in the current page session while you move between the world and sections. Refreshing the page or explicitly locking the space clears this unsaved state. Walking to a place or carrying a moment does not create a journal entry.
+Discoveries, completed modules, unlocked worlds, saved insights, new journal excerpts, and your current chapter are persisted in the encrypted backend. Your traveler’s color, Gentler motion choice, and encounter drafts stay in the page session. Refreshing or locking clears unsaved drafts. Visiting a region saves only its ID, not private writing.
 
-Only reflections you explicitly choose to keep are saved to the journal. Saved reflections and saved personalization, such as your name and practice themes, are encrypted on the app’s server. Anyone with the shared passcode can access the saved journal, and server administrators can access its encryption key. Keep the private `data/` directory and any exports or backups somewhere safe. Back up `data/config.json` and `data/journal.enc` together; the key is needed to recover the journal.
+New journal entries contribute an excerpt of up to 6,000 characters to your journey. Existing journal entries are preserved and are not automatically imported. Deleting a journal entry also removes its linked journey evidence. Deleting an insight in My journey removes it from review evidence and refreshes observations; a separately saved journal original remains until deleted there. Completed modules remain completed after insight deletion. Export the journey as JSON and the journal as Markdown from their respective views.
+
+Saved reflections and personalization are encrypted on the app’s server. Anyone with the shared passcode can access the journal, journey, and connected AI features. Server administrators can access encryption keys. Keep the private `data/` directory and exports or backups safe. Back up `data/config.json` and `data/journal.enc` together; that key is needed to recover the journal and journey. The optional provider vault (`data/openai/` by default, or `OPENAI_CONFIG_DIR`) is separate and must stay outside `dist/` and source control. Public origins cannot change its key through the setup API.
 
 ## Run or restart from a terminal
 

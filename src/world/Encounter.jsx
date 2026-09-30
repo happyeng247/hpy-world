@@ -1,15 +1,19 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, X } from 'lucide-react';
-import { SaveButton } from '../UI';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Mic, X } from 'lucide-react';
 import { ENCOUNTERS } from './encounters';
 
-function EncounterCard({ stationId, onClose, onDeepPractice, onSave, onComplete, completed, draft, onDraft }) {
-  const encounter = ENCOUNTERS[stationId];
+function EncounterCard({ stationId, module, onClose, onDeepPractice, onVoice, onComplete, completed, draft, onDraft }) {
+  const encounter = module || ENCOUNTERS[stationId];
   const [data, setData] = useState(() => ({
     answers: encounter.steps.map((_, i) => typeof draft?.answers?.[i] === 'string' ? draft.answers[i].slice(0, 2000) : ''),
     step: Math.max(0, Math.min(encounter.steps.length - 1, Number.isInteger(draft?.step) ? draft.step : 0)),
     done: Boolean(draft?.done),
+    takeaway: draft?.takeaway || '',
+    nextStep: draft?.nextStep || '',
   }));
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const mounted = useRef(true);
   const panelRef = useRef(null);
   const questionRef = useRef(null);
   const baseId = useId();
@@ -27,8 +31,10 @@ function EncounterCard({ stationId, onClose, onDeepPractice, onSave, onComplete,
   };
 
   useEffect(() => {
+    mounted.current = true;
     const previous = document.activeElement;
     return () => {
+      mounted.current = false;
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
@@ -57,15 +63,18 @@ function EncounterCard({ stationId, onClose, onDeepPractice, onSave, onComplete,
   };
 
   const advance = () => update(lastStep ? { done: true } : { step: data.step + 1 });
-  const saveReflection = () => onSave({
-    title: `${encounter.title} · A small discovery`,
-    mode: stationId,
-    body: encounter.steps.map((item, i) => `${item.prompt}\n\n${data.answers[i].trim() || 'A question left open.'}`).join('\n\n—\n\n'),
-  });
+  const complete = async () => {
+    setSaving(true); setSaveError('');
+    try {
+      await onComplete(stationId, { answers: data.answers, takeaway: data.takeaway.trim(), nextStep: data.nextStep.trim() });
+      if (mounted.current) onClose();
+    } catch (error) { if (mounted.current) setSaveError(error.message); }
+    finally { if (mounted.current) setSaving(false); }
+  };
 
   return <section ref={panelRef} className="world-encounter" data-station={stationId} role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={keyDown} onKeyUp={event => event.stopPropagation()}>
     <header className="world-encounter-header">
-      <span className="world-encounter-eyebrow">{completed ? <><Check size={13} aria-hidden="true"/> A place you’ve paused</> : 'A small invitation'}</span>
+      <span className="world-encounter-eyebrow">{completed ? <><Check size={13} aria-hidden="true"/> Module complete · Keep exploring</> : 'A small invitation'}</span>
       <button type="button" className="icon-button world-encounter-close" aria-label="Close invitation and return to the world" onClick={onClose}><X size={19}/></button>
     </header>
     <h2 id={titleId}>{encounter.title}</h2>
@@ -92,18 +101,23 @@ function EncounterCard({ stationId, onClose, onDeepPractice, onSave, onComplete,
       <h3 className="world-encounter-question" ref={questionRef} tabIndex={-1}>A little something to carry.</h3>
       <p className="world-encounter-invitation">{encounter.completion}</p>
       {hasWords && <div className="world-encounter-summary">{encounter.steps.map((item, i) => data.answers[i].trim() && <div key={i}><span>{item.prompt}</span><p>{data.answers[i]}</p></div>)}</div>}
+      <label className="encounter-takeaway" htmlFor={`${baseId}-takeaway`}>What are you noticing now?</label>
+      <textarea id={`${baseId}-takeaway`} className="textarea" disabled={saving} value={data.takeaway} maxLength={2000} rows={3} placeholder="A discovery, a question, or something you want to remember…" onChange={event => update({ takeaway: event.target.value })}/>
+      <label className="encounter-takeaway" htmlFor={`${baseId}-next`}>One small thing to try <span>(optional)</span></label>
+      <textarea id={`${baseId}-next`} className="textarea" disabled={saving} value={data.nextStep} maxLength={2000} rows={2} placeholder="What could this look like in an ordinary moment?" onChange={event => update({ nextStep: event.target.value })}/>
+      <p className="world-encounter-note">Saving keeps these answers and your takeaway in your private journey. Completing all six modules opens the next world. You can leave with a question still open.</p>
+      {saveError && <p className="error-text" role="alert">{saveError}</p>}
       <div className="world-encounter-actions world-encounter-finish">
-        <button type="button" className="button dark" onClick={() => { onComplete?.(stationId); onClose(); }}>Carry this with me<ArrowRight size={16}/></button>
-        {hasWords && <SaveButton onSave={saveReflection} label="Keep these words"/>}
+        <button type="button" className="button dark" disabled={saving || !data.takeaway.trim()} onClick={complete}>{saving ? 'Keeping your insight…' : completed ? 'Keep a new insight' : 'Save insight & complete'}<ArrowRight size={16}/></button>
       </div>
       <button type="button" className="text-button world-encounter-skip" onClick={() => update({ done: false, step: 0 })}><ArrowLeft size={14}/> Revisit my words</button>
-      <p className="world-encounter-note">{hasWords ? 'Your words stay in this session unless you choose to keep them in your journal.' : 'No words needed. You can leave with an open question.'}</p>
     </>}
     <button type="button" className="text-button world-encounter-deep" onClick={() => onDeepPractice(stationId)}>{encounter.deepLabel}<ArrowUpRight size={15}/></button>
+    {onVoice && <button type="button" className="text-button world-encounter-voice" onClick={onVoice}><Mic size={17}/>Explore this out loud</button>}
   </section>;
 }
 
 export default function Encounter(props) {
-  if (!ENCOUNTERS[props.stationId]) return null;
-  return <EncounterCard key={props.stationId} {...props}/>;
+  if (!props.module && !ENCOUNTERS[props.stationId]) return null;
+  return <EncounterCard key={`${props.worldId}:${props.stationId}`} {...props}/>;
 }

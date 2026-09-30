@@ -70,3 +70,14 @@ npm test
 ```
 
 The server tests cover the authentication gate, session revocation and expiry, cross-origin protection, brute-force limits, encrypted persistence, concurrent saves, invalid input, static file boundaries, and tamper detection.
+
+
+## OpenAI voice and journey review
+
+Set `OPENAI_API_KEY` as a private server environment variable in your hosting service. Use an OpenAI project with billing and model access; never put a key in a `VITE_` variable or the static frontend. Current defaults are `gpt-realtime-2.1` for voice, `gpt-live-transcribe` for voice input transcription, and `gpt-6-luna` for reviews. Override with `OPENAI_REALTIME_MODEL`, `OPENAI_TRANSCRIPTION_MODEL`, and `OPENAI_REVIEW_MODEL` if your project uses another compatible model.
+
+For local setup, unlock at a loopback address and open **My journey → OpenAI connection**. The encrypted key vault defaults to `DATA_DIR/openai`. Optional `OPENAI_CONFIG_DIR` can share the credential between local app instances while keeping their journals separate. The directory must stay outside the served `dist/` tree. Local setup is denied whenever `APP_ORIGIN` is configured, including requests arriving through a local reverse proxy. Configure a hosted deployment through its secret manager instead.
+
+The journal and journey share the existing encrypted store. Back up its config and journal together. OpenAI credentials are separate from the journal and never appear in journey exports. Persistent storage is required for progress and insights to survive redeployment. The single-process store must not be shared by multiple writing replicas.
+
+API status means a key is configured, not that billing or every model has been verified. Use the in-app voice flow to test microphone permissions and model access after connecting your project. AI reviews remain off until the user enables them. New saved reflections then refresh the backend review; disabled or unavailable AI leaves basic descriptive observations in place. This app does not run a clinical assessment, emergency monitor, or continuous microphone recording.

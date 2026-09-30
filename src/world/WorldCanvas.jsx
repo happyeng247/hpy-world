@@ -1,12 +1,14 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
-import { createEnvironment, terrainHeight, WORLD_RADIUS, WORLD_STATIONS } from './environment.js';
+import { createEnvironment, getWorldAppearance, terrainHeight, WORLD_RADIUS, WORLD_STATIONS } from './environment.js';
 import { keyboardVector, stepMove, planPath, isWalkable, nearestWalkable } from './movement.js';
 import { createCanvasGestures } from './gestures.js';
 
 const SPAWN = { x: 0, z: 14 };
 const INTERACTION_RADIUS = 3.3;
-let savedPose = null;
+// Each chapter keeps its own location during this page session. A newly opened
+// chapter starts at its entrance instead of inheriting another world's pose.
+const savedPoses = new Map();
 
 function makeAvatar(color) {
   const group = new THREE.Group();
@@ -84,7 +86,7 @@ function stationOnObject(object) {
 }
 
 const WorldCanvas = forwardRef(function WorldCanvas({
-  paused = false, reducedMotion = false, characterColor = '#b590d0', completed = [],
+  worldId = 'arrival', paused = false, reducedMotion = false, characterColor = '#b590d0', completed = [],
   onUpdate, onInteract, onDiscover, onError, onReady,
 }, forwardedRef) {
   const canvasRef = useRef(null), runtimeRef = useRef(null);
@@ -105,6 +107,7 @@ const WorldCanvas = forwardRef(function WorldCanvas({
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const biome = getWorldAppearance(worldId);
     let renderer, scene, environment, observer, frame = 0, disposed = false, failed = false;
     let removeListeners = () => {}, releaseInputs = () => {};
     const textures = new Set();
@@ -139,28 +142,29 @@ const WorldCanvas = forwardRef(function WorldCanvas({
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = biome.light.exposure;
       scene = new THREE.Scene();
 
       const sky = document.createElement('canvas'); sky.width = 2; sky.height = 512;
       const context = sky.getContext('2d'), gradient = context.createLinearGradient(0, 0, 0, 512);
-      gradient.addColorStop(0, '#cbbcdf'); gradient.addColorStop(0.45, '#ecddd9'); gradient.addColorStop(1, '#f6e8d6');
+      gradient.addColorStop(0, biome.sky[0]); gradient.addColorStop(0.45, biome.sky[1]); gradient.addColorStop(1, biome.sky[2]);
       context.fillStyle = gradient; context.fillRect(0, 0, 2, 512);
       const skyTexture = new THREE.CanvasTexture(sky); skyTexture.colorSpace = THREE.SRGBColorSpace;
       textures.add(skyTexture); scene.background = skyTexture;
-      scene.fog = new THREE.Fog('#eddfd8', 42, 97);
-      scene.add(new THREE.HemisphereLight('#fff0df', '#c0afa2', 2.6));
-      const sun = new THREE.DirectionalLight('#ffe7c9', 3.1);
-      sun.position.set(-24, 43, 18); sun.castShadow = true;
+      scene.fog = new THREE.Fog(biome.fog, 42, 97);
+      scene.add(new THREE.HemisphereLight(biome.light.sky, biome.light.ground, biome.light.ambient));
+      const sun = new THREE.DirectionalLight(biome.light.sun, biome.light.strength);
+      sun.position.set(biome.id === 'integration' ? -34 : -24, biome.id === 'practice' ? 35 : 43, 18); sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);
       Object.assign(sun.shadow.camera, { left: -43, right: 43, top: 43, bottom: -43, near: 1, far: 105 });
       sun.shadow.normalBias = 0.06; sun.shadow.bias = -0.00012; sun.shadow.radius = 3;
       scene.add(sun); scene.add(sun.target);
-      const fill = new THREE.DirectionalLight('#d9cdff', 0.65); fill.position.set(12, 13, -24); scene.add(fill);
-      environment = createEnvironment(scene);
+      const fill = new THREE.DirectionalLight(biome.light.fill, 0.65); fill.position.set(12, 13, -24); scene.add(fill);
+      environment = createEnvironment(scene, { worldId: biome.id });
       const obstacles = environment.colliders || [];
       const movementOptions = { radius: WORLD_RADIUS - 3 };
       const avatar = makeAvatar(latest.current.characterColor); scene.add(avatar.group);
+      const savedPose = savedPoses.get(biome.id);
       const initial = savedPose && isWalkable(savedPose, obstacles, movementOptions) ? savedPose : SPAWN;
       let position = nearestWalkable(initial, obstacles, movementOptions) || { ...SPAWN };
       let heading = savedPose?.heading || 0, cameraYaw = savedPose?.cameraYaw ?? 0.22, targetYaw = cameraYaw;
@@ -402,7 +406,7 @@ const WorldCanvas = forwardRef(function WorldCanvas({
           if (!blocked && distance < 4.3 && !discovered.has(station.id)) { discovered.add(station.id); latest.current.onDiscover?.(station.id); }
         }
         if (!blocked) environment.update?.(latest.current.reducedMotion ? 0 : elapsed, latest.current.reducedMotion ? 0 : dt);
-        savedPose = { ...position, heading, cameraYaw };
+        savedPoses.set(biome.id, { ...position, heading, cameraYaw });
         try { renderer.render(scene, camera); } catch (error) {
           fail(error); return;
         }
@@ -463,9 +467,9 @@ const WorldCanvas = forwardRef(function WorldCanvas({
       fail(error);
     }
     return cleanup;
-  }, []);
+  }, [worldId]);
 
-  return <canvas ref={canvasRef} className="world-canvas" role="img" tabIndex={0}
+  return <canvas ref={canvasRef} className="world-canvas" data-world-id={worldId} role="img" tabIndex={0}
     aria-label="Your explorable HPY island. Tap the ground to walk, drag one finger to look around, and pinch with two fingers to zoom. You can also use the movement control or the island map. On a keyboard, walk with W A S D or arrow keys and press E near a place to enter."
     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', cursor: 'grab', outlineOffset: '-5px' }} />;
 });

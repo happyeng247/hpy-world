@@ -18,7 +18,7 @@ export function SaveButton({ onSave, disabled = false, label = 'Keep this reflec
     try { await onSave(); setSaved(true); setTimeout(() => setSaved(false), 2500); }
     catch (e) { setError(e.message); }
     finally { setBusy(false); }
-  }}>{busy ? <Loader2 size={17} className="spin"/> : saved ? <Check size={17}/> : null}{saved ? 'Kept in your journal' : label}{!busy && !saved && <ArrowUpRight size={17}/>}</button>{error && <p role="alert" className="error-text">{error}</p>}</div>;
+  }}>{busy ? <Loader2 size={17} className="spin"/> : saved ? <Check size={17}/> : null}{saved ? 'Kept in your journal' : label}{!busy && !saved && <ArrowUpRight size={17}/>}</button>{error && <p role="alert" className="error-text">{error}</p>}<p className="save-journey-note">Saved reflections join your private journey review.</p></div>;
 }
 
 let openModalCount = 0;
